@@ -1,13 +1,11 @@
 """
-ai_engine.py - Claude AI integration for the AI Onboarding Engine.
+ai_engine.py - Groq AI integration for the AI Onboarding Engine.
 
-All functions use the Anthropic SDK with claude-opus-4-6.
-Adaptive thinking is enabled for complex reasoning tasks (gap analysis,
-questionnaire generation, pathway generation, skill test generation).
+All functions use the Groq SDK with llama-3.3-70b-versatile.
+Groq uses an OpenAI-compatible chat completions API.
 
 Key design decisions:
-- Adaptive thinking uses {"type": "adaptive"} (budget_tokens is deprecated on opus-4)
-- Response content may contain ThinkingBlock + TextBlock; we always extract the TextBlock
+- Groq returns response.choices[0].message.content as plain text
 - JSON is parsed with markdown fence stripping for robustness
 """
 
@@ -16,40 +14,40 @@ import re
 import os
 from typing import Any, Dict, List, Optional
 
-import anthropic
+from groq import Groq
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Initialize the Anthropic client once (reads ANTHROPIC_API_KEY from env)
-client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+MODEL = "llama-3.3-70b-versatile"
 
-MODEL = "claude-opus-4-6"
+# Lazy client — initialized on first use so the app can start without the key set
+_client: Optional[Groq] = None
+
+def _get_client() -> Groq:
+    global _client
+    if _client is None:
+        api_key = os.environ.get("GROQ_API_KEY")
+        if not api_key:
+            raise RuntimeError("GROQ_API_KEY is not set. Add it to your .env file.")
+        _client = Groq(api_key=api_key)
+    return _client
 
 
 # ---------------------------------------------------------------------------
 # Helper utilities
 # ---------------------------------------------------------------------------
 
-def _extract_text_block(content: list) -> str:
-    """
-    Extract the text from a Claude response that may contain thinking blocks.
-    ThinkingBlock objects have a 'thinking' attribute but NOT 'text'.
-    TextBlock objects have a 'text' attribute.
-    We skip all thinking blocks and return the first text block.
-    """
-    for block in content:
-        if hasattr(block, "text"):
-            return block.text
-    return ""
+def _get_text(response) -> str:
+    """Extract text content from a Groq chat completion response."""
+    return response.choices[0].message.content or ""
 
 
 def _parse_json_response(text: str) -> Any:
     """
-    Parse a JSON response from Claude, stripping markdown code fences if present.
-    Claude sometimes wraps output in ```json ... ``` blocks.
+    Parse a JSON response from the model, stripping markdown code fences if present.
+    Models sometimes wrap output in ```json ... ``` blocks.
     """
-    # Strip leading/trailing whitespace
     text = text.strip()
 
     # Remove ```json ... ``` or ``` ... ``` fences
@@ -68,7 +66,7 @@ def _parse_json_response(text: str) -> Any:
                 return json.loads(json_match.group(1))
             except json.JSONDecodeError:
                 pass
-        raise ValueError(f"Could not parse JSON from Claude response: {e}\nText was: {text[:500]}")
+        raise ValueError(f"Could not parse JSON from model response: {e}\nText was: {text[:500]}")
 
 
 # ---------------------------------------------------------------------------
@@ -77,8 +75,7 @@ def _parse_json_response(text: str) -> Any:
 
 def parse_resume(text: str) -> Dict[str, Any]:
     """
-    Extract structured information from resume text using Claude.
-    Uses adaptive thinking for more accurate extraction.
+    Extract structured information from resume text.
 
     Returns:
         {
@@ -127,20 +124,18 @@ Rules:
 - If information is missing, use reasonable defaults or empty arrays
 - Return ONLY the JSON, nothing else"""
 
-    response = client.messages.create(
+    response = _get_client().chat.completions.create(
         model=MODEL,
         max_tokens=4000,
-        thinking={"type": "adaptive"},
         messages=[{"role": "user", "content": prompt}]
     )
 
-    text_response = _extract_text_block(response.content)
-    return _parse_json_response(text_response)
+    return _parse_json_response(_get_text(response))
 
 
 def parse_job_description(text: str) -> Dict[str, Any]:
     """
-    Extract structured information from a job description using Claude.
+    Extract structured information from a job description.
 
     Returns:
         {
@@ -179,21 +174,18 @@ Rules:
 - responsibilities should be concise bullet points
 - Return ONLY the JSON, nothing else"""
 
-    response = client.messages.create(
+    response = _get_client().chat.completions.create(
         model=MODEL,
         max_tokens=3000,
-        thinking={"type": "adaptive"},
         messages=[{"role": "user", "content": prompt}]
     )
 
-    text_response = _extract_text_block(response.content)
-    return _parse_json_response(text_response)
+    return _parse_json_response(_get_text(response))
 
 
 def analyze_skill_gap(resume_data: Dict, jd_data: Dict) -> Dict[str, Any]:
     """
     Perform a detailed skill gap analysis comparing candidate's resume to job requirements.
-    Uses adaptive thinking for nuanced reasoning.
 
     Returns:
         {
@@ -248,15 +240,13 @@ Rules:
 - Be specific and actionable in reasons
 - Return ONLY the JSON, nothing else"""
 
-    response = client.messages.create(
+    response = _get_client().chat.completions.create(
         model=MODEL,
         max_tokens=5000,
-        thinking={"type": "adaptive"},
         messages=[{"role": "user", "content": prompt}]
     )
 
-    text_response = _extract_text_block(response.content)
-    return _parse_json_response(text_response)
+    return _parse_json_response(_get_text(response))
 
 
 def generate_questionnaire(
@@ -267,7 +257,6 @@ def generate_questionnaire(
     """
     Generate an adaptive MCQ questionnaire of 35-40 questions covering all skill gaps.
     Questions are distributed across basic/intermediate/advanced levels per skill.
-    Uses adaptive thinking for balanced, high-quality question generation.
 
     Returns list of MCQ dicts:
         [{id, skill, level, question, options {A/B/C/D}, correct_answer, explanation, concept}]
@@ -351,19 +340,17 @@ Rules:
 - Make questions relevant to real-world {jd_data.get('role_title', 'software engineering')} scenarios
 - Return ONLY the JSON array, nothing else"""
 
-    response = client.messages.create(
+    response = _get_client().chat.completions.create(
         model=MODEL,
         max_tokens=16000,
-        thinking={"type": "adaptive"},
         messages=[{"role": "user", "content": prompt}]
     )
 
-    text_response = _extract_text_block(response.content)
-    questions = _parse_json_response(text_response)
+    questions = _parse_json_response(_get_text(response))
 
     # Validate and normalize
     if not isinstance(questions, list):
-        raise ValueError("Expected a list of questions from Claude")
+        raise ValueError("Expected a list of questions from the model")
 
     for i, q in enumerate(questions):
         q["id"] = i + 1  # Ensure sequential IDs
@@ -377,7 +364,7 @@ def calculate_proficiency_scores(
 ) -> Dict[str, Dict]:
     """
     Calculate per-skill proficiency scores based on questionnaire answers.
-    Pure Python calculation - no Claude call needed here.
+    Pure Python calculation - no AI call needed here.
 
     Args:
         questions: list of MCQ dicts with skill, level, correct_answer
@@ -421,7 +408,7 @@ def calculate_proficiency_scores(
         inter = levels["intermediate"]
         adv = levels["advanced"]
 
-        # Calculate accuracy per level (0 if no questions at that level)
+        # Calculate accuracy per level (None if no questions at that level)
         def accuracy(data):
             if data["total"] == 0:
                 return None
@@ -479,7 +466,6 @@ def generate_learning_pathway(
 ) -> Dict[str, Any]:
     """
     Generate a personalized learning pathway for all skill gaps.
-    Uses adaptive thinking for a sophisticated, tailored plan.
 
     Returns comprehensive JSON with learning order, resources, timelines, etc.
     """
@@ -557,7 +543,7 @@ Design a comprehensive, personalized learning pathway. Return ONLY a valid JSON 
                     "milestone": "Build and evaluate a classification pipeline"
                 }}
             ],
-            "practice_project": "Build an end-to-end ML pipeline: data ingestion → feature engineering → model training → evaluation → FastAPI serving endpoint"
+            "practice_project": "Build an end-to-end ML pipeline: data ingestion -> feature engineering -> model training -> evaluation -> FastAPI serving endpoint"
         }}
     ]
 }}
@@ -573,21 +559,18 @@ Rules:
 - estimated_weeks should be realistic and account for the gap severity
 - Return ONLY the JSON, nothing else"""
 
-    response = client.messages.create(
+    response = _get_client().chat.completions.create(
         model=MODEL,
         max_tokens=16000,
-        thinking={"type": "adaptive"},
         messages=[{"role": "user", "content": prompt}]
     )
 
-    text_response = _extract_text_block(response.content)
-    return _parse_json_response(text_response)
+    return _parse_json_response(_get_text(response))
 
 
 def generate_skill_test(skill_name: str, target_level: str) -> List[Dict]:
     """
     Generate 8 verification MCQs for a specific skill at the target proficiency level.
-    Uses adaptive thinking to ensure quality and appropriate difficulty.
 
     Returns list of 8 MCQ dicts:
         [{id, question, options {A/B/C/D}, correct_answer, explanation, concept_tested}]
@@ -626,15 +609,13 @@ Rules:
 - concept_tested should identify the specific sub-topic or concept
 - Return ONLY the JSON array, nothing else"""
 
-    response = client.messages.create(
+    response = _get_client().chat.completions.create(
         model=MODEL,
         max_tokens=8000,
-        thinking={"type": "adaptive"},
         messages=[{"role": "user", "content": prompt}]
     )
 
-    text_response = _extract_text_block(response.content)
-    questions = _parse_json_response(text_response)
+    questions = _parse_json_response(_get_text(response))
 
     if not isinstance(questions, list):
         raise ValueError("Expected a list of questions")
@@ -653,7 +634,7 @@ def evaluate_skill_test(
     target_level: str
 ) -> Dict[str, Any]:
     """
-    Evaluate a completed skill test and generate detailed feedback using Claude.
+    Evaluate a completed skill test and generate detailed feedback.
 
     Args:
         skill_name: name of the skill being tested
@@ -701,17 +682,7 @@ def evaluate_skill_test(
         wa.get("concept", "") for wa in wrong_answers if wa.get("concept")
     ))
 
-    # Generate personalized feedback with Claude
-    performance_context = {
-        "skill": skill_name,
-        "target_level": target_level,
-        "score": score,
-        "correct": correct_count,
-        "total": total,
-        "passed": passed,
-        "wrong_concepts": areas_to_review
-    }
-
+    # Generate personalized feedback
     feedback_prompt = f"""You are an expert learning coach. A candidate just completed a verification test.
 
 TEST RESULTS:
@@ -729,13 +700,13 @@ Write a brief, encouraging, and actionable feedback message (3-5 sentences) that
 
 Return ONLY the feedback text, no JSON, no formatting."""
 
-    feedback_response = client.messages.create(
+    feedback_response = _get_client().chat.completions.create(
         model=MODEL,
         max_tokens=500,
         messages=[{"role": "user", "content": feedback_prompt}]
     )
 
-    feedback_text = _extract_text_block(feedback_response.content).strip()
+    feedback_text = _get_text(feedback_response).strip()
 
     return {
         "score": score,
