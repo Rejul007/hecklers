@@ -59,13 +59,24 @@ def _parse_json_response(text: str) -> Any:
     try:
         return json.loads(text)
     except json.JSONDecodeError as e:
-        # Try to find JSON object/array within the text as a fallback
+        # Try to find a complete JSON object/array within the text
         json_match = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', text)
         if json_match:
             try:
                 return json.loads(json_match.group(1))
             except json.JSONDecodeError:
                 pass
+
+        # Truncated array recovery: find the last complete object and close the array
+        if text.lstrip().startswith('['):
+            last_close = text.rfind('}')
+            if last_close != -1:
+                truncated = text[:last_close + 1].rstrip().rstrip(',') + '\n]'
+                try:
+                    return json.loads(truncated)
+                except json.JSONDecodeError:
+                    pass
+
         raise ValueError(f"Could not parse JSON from model response: {e}\nText was: {text[:500]}")
 
 
@@ -252,7 +263,8 @@ Rules:
 def generate_questionnaire(
     skill_gaps: Dict,
     resume_data: Dict,
-    jd_data: Dict
+    jd_data: Dict,
+    num_questions: int = 30
 ) -> List[Dict]:
     """
     Generate an adaptive MCQ questionnaire of 35-40 questions covering all skill gaps.
@@ -293,7 +305,11 @@ SKILLS TO ASSESS:
 
 JOB ROLE: {jd_data.get('role_title', 'Software Engineer')}
 
-Generate exactly 37 multiple choice questions (35-40 range). Distribute questions across skills proportionally based on gap_severity (critical/high gaps get more questions). For each skill, create questions at basic, intermediate, and advanced levels.
+Generate exactly {num_questions} multiple choice questions. Distribute questions across skills proportionally based on gap_severity (critical/high gaps get more questions). For each skill, create questions at basic, intermediate, and advanced levels.
+
+IMPORTANT: At least 60% of questions must be scenario-based / practical — present a real-world situation and ask what the candidate would do, debug, choose, or implement. Avoid pure definition or memorisation questions.
+
+Every question MUST include option E fixed as "I don't know" — do not change this text.
 
 Return ONLY a valid JSON array with this exact structure:
 [
@@ -301,31 +317,33 @@ Return ONLY a valid JSON array with this exact structure:
         "id": 1,
         "skill": "Machine Learning",
         "level": "basic",
-        "question": "What is the primary difference between supervised and unsupervised learning?",
+        "question": "Your training accuracy is 98% but validation accuracy is 62%. Which action should you take first?",
         "options": {{
-            "A": "Supervised learning uses labeled data; unsupervised learning finds patterns in unlabeled data",
-            "B": "Supervised learning is faster than unsupervised learning",
-            "C": "Supervised learning requires more data than unsupervised learning",
-            "D": "Supervised learning is only used for classification tasks"
+            "A": "Increase the number of training epochs",
+            "B": "Add dropout or L2 regularization to reduce overfitting",
+            "C": "Switch to a simpler loss function",
+            "D": "Collect more test data",
+            "E": "I don't know"
         }},
-        "correct_answer": "A",
-        "explanation": "Supervised learning trains on labeled input-output pairs, while unsupervised learning discovers hidden structure in data without labels.",
-        "concept": "Fundamental ML paradigms"
+        "correct_answer": "B",
+        "explanation": "The large gap between training and validation accuracy is a classic sign of overfitting. Regularization techniques like dropout or L2 penalize model complexity and improve generalization.",
+        "concept": "Overfitting and regularization"
     }},
     {{
         "id": 2,
         "skill": "Machine Learning",
         "level": "intermediate",
-        "question": "Which technique helps prevent overfitting in neural networks?",
+        "question": "You are deploying a fraud-detection model where false negatives (missed fraud) are far more costly than false positives. Which metric should guide your threshold tuning?",
         "options": {{
-            "A": "Increasing learning rate",
-            "B": "Dropout regularization",
-            "C": "Adding more hidden layers",
-            "D": "Removing validation set"
+            "A": "Accuracy",
+            "B": "Precision",
+            "C": "Recall",
+            "D": "F1-score",
+            "E": "I don't know"
         }},
-        "correct_answer": "B",
-        "explanation": "Dropout randomly sets neurons to zero during training, preventing the network from over-relying on specific neurons and improving generalization.",
-        "concept": "Regularization techniques"
+        "correct_answer": "C",
+        "explanation": "Recall (true positive rate) measures how many actual fraud cases are caught. When missing fraud is very costly, maximizing recall is critical even at the expense of more false alarms.",
+        "concept": "Evaluation metrics and threshold selection"
     }}
 ]
 
@@ -334,15 +352,15 @@ Rules:
 - level must be: basic, intermediate, or advanced
 - Each skill should have at least 3 questions (1 basic, 1 intermediate, 1 advanced)
 - High/critical severity skills should get 5-7 questions
-- All 4 options must be plausible (avoid obviously wrong answers)
-- correct_answer must be exactly "A", "B", "C", or "D"
-- questions must test practical knowledge, not just definitions
+- Options A–D must all be plausible; option E is always exactly "I don't know"
+- correct_answer must be exactly "A", "B", "C", or "D" — never "E"
+- Frame questions as real-world tasks, debugging problems, or design decisions where possible
 - Make questions relevant to real-world {jd_data.get('role_title', 'software engineering')} scenarios
 - Return ONLY the JSON array, nothing else"""
 
     response = _get_client().chat.completions.create(
         model=MODEL,
-        max_tokens=16000,
+        max_tokens=32768,
         messages=[{"role": "user", "content": prompt}]
     )
 

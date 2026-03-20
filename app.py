@@ -246,9 +246,13 @@ async def analyze_skill_gap(session_id: str):
 # Questionnaire endpoints
 # ---------------------------------------------------------------------------
 
+class QuestionnaireGenerateRequest(BaseModel):
+    num_questions: int = 30
+
 @app.post("/api/sessions/{session_id}/questionnaire/generate")
-async def generate_questionnaire(session_id: str):
-    """Generate 35-40 adaptive MCQ questions covering all skill gaps."""
+async def generate_questionnaire(session_id: str, body: QuestionnaireGenerateRequest = QuestionnaireGenerateRequest()):
+    """Generate adaptive MCQ questions covering all skill gaps."""
+    num_questions = max(10, min(50, body.num_questions))  # clamp to 10-50
     session = database.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -260,7 +264,8 @@ async def generate_questionnaire(session_id: str):
         questions = ai_engine.generate_questionnaire(
             session["skill_gaps"],
             session["resume_data"],
-            session["jd_data"]
+            session["jd_data"],
+            num_questions=num_questions
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate questionnaire: {str(e)}")
@@ -312,8 +317,8 @@ async def submit_answer(session_id: str, body: AnswerInput):
         raise HTTPException(status_code=404, detail=f"Question {q_id} not found")
 
     # Validate answer
-    if body.answer not in ["A", "B", "C", "D"]:
-        raise HTTPException(status_code=400, detail="Answer must be A, B, C, or D")
+    if body.answer not in ["A", "B", "C", "D", "E"]:
+        raise HTTPException(status_code=400, detail="Answer must be A, B, C, D, or E")
 
     # Record the answer
     state["answers"][str(q_id)] = body.answer

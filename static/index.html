@@ -6,6 +6,10 @@
   <title>AI Onboarding Engine</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <style>
     /* Custom gradient and animation styles */
     body { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 30%, #4338ca 60%, #6d28d9 100%); min-height: 100vh; }
@@ -50,6 +54,15 @@
   <!-- TOP NAV / STEPPER -->
   <div id="stepper" class="max-w-5xl mx-auto mb-8 hidden">
     <div class="glass rounded-2xl p-4">
+      <div id="user-bar" class="hidden flex items-center justify-between mb-3 pb-3 border-b border-white/20">
+        <div class="flex items-center gap-2">
+          <div id="user-avatar" class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-bold"></div>
+          <span id="user-display-name" class="text-white text-sm font-medium"></span>
+        </div>
+        <button onclick="signOut()" class="text-indigo-300 hover:text-white text-xs flex items-center gap-1 transition-colors">
+          <i class="fa fa-right-from-bracket"></i> Sign Out
+        </button>
+      </div>
       <div class="flex items-center justify-between">
         <div id="step-1" class="stepper-item flex flex-col items-center flex-1">
           <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 bg-gray-200 text-gray-500" id="step-icon-1"><i class="fa fa-upload"></i></div>
@@ -76,6 +89,76 @@
   </div>
 
   <!-- =====================================================================
+       VIEW: AUTH (Login / Sign Up)
+  ====================================================================== -->
+  <div id="view-auth" class="max-w-md mx-auto fade-in mt-16">
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white/10 backdrop-blur mb-4 pulse-ring">
+        <i class="fa fa-brain text-4xl text-white"></i>
+      </div>
+      <h1 class="text-3xl font-black text-white mb-1">AI Onboarding Engine</h1>
+      <p class="text-indigo-300 text-sm">Adaptive • Personalized • Intelligent</p>
+    </div>
+
+    <div class="card p-8">
+      <!-- Tabs -->
+      <div class="flex mb-6 bg-gray-100 rounded-xl p-1">
+        <button id="auth-tab-login" onclick="switchAuthTab('login')" class="flex-1 py-2 rounded-lg text-sm font-bold transition-all bg-white text-indigo-700 shadow">
+          <i class="fa fa-right-to-bracket mr-1"></i> Log In
+        </button>
+        <button id="auth-tab-signup" onclick="switchAuthTab('signup')" class="flex-1 py-2 rounded-lg text-sm font-bold transition-all text-gray-500 hover:text-gray-700">
+          <i class="fa fa-user-plus mr-1"></i> Sign Up
+        </button>
+      </div>
+
+      <!-- Error message -->
+      <div id="auth-error" class="hidden bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mb-4">
+        <i class="fa fa-circle-exclamation mr-2"></i><span id="auth-error-msg"></span>
+      </div>
+
+      <!-- Name field (signup only) -->
+      <div id="auth-name-field" class="hidden mb-4">
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Full Name</label>
+        <input id="auth-name" type="text" placeholder="Jane Smith"
+          class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-indigo-500 outline-none text-sm" />
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+        <input id="auth-email" type="email" placeholder="you@example.com"
+          class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-indigo-500 outline-none text-sm" />
+      </div>
+
+      <div class="mb-6">
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+        <div class="relative">
+          <input id="auth-password" type="password" placeholder="••••••••"
+            class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-indigo-500 outline-none text-sm pr-12" />
+          <button onclick="togglePasswordVisibility()" class="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+            <i id="password-eye-icon" class="fa fa-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <button id="auth-submit-btn" onclick="handleAuthSubmit()"
+        class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-3 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg mb-4">
+        <i class="fa fa-right-to-bracket mr-2"></i><span id="auth-submit-label">Log In</span>
+      </button>
+
+      <div class="relative my-4">
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-200"></div></div>
+        <div class="relative flex justify-center text-xs text-gray-400 bg-white px-2">or</div>
+      </div>
+
+      <button onclick="handleGoogleSignIn()"
+        class="w-full flex items-center justify-center gap-3 border-2 border-gray-200 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 transition-all text-sm">
+        <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </button>
+    </div>
+  </div>
+
+  <!-- =====================================================================
        VIEW: WELCOME
   ====================================================================== -->
   <div id="view-welcome" class="max-w-4xl mx-auto fade-in">
@@ -85,7 +168,7 @@
       </div>
       <h1 class="text-5xl font-black text-white mb-4">AI Onboarding Engine</h1>
       <p class="text-xl text-indigo-200 mb-2">Adaptive • Personalized • Intelligent</p>
-      <p class="text-indigo-300 max-w-2xl mx-auto">Claude-powered skill gap analysis and personalized learning pathways for modern hiring.</p>
+      <p class="text-indigo-300 max-w-2xl mx-auto">AI-powered skill gap analysis and personalized learning pathways for modern hiring.</p>
     </div>
 
     <!-- Feature Cards -->
@@ -93,7 +176,7 @@
       <div class="glass rounded-2xl p-6 text-center">
         <i class="fa fa-file-magnifying-glass text-3xl text-indigo-300 mb-3"></i>
         <h3 class="text-white font-bold mb-2">Resume Intelligence</h3>
-        <p class="text-indigo-300 text-sm">Claude extracts skills, experience, and education from any resume format</p>
+        <p class="text-indigo-300 text-sm">AI extracts skills, experience, and education from any resume format</p>
       </div>
       <div class="glass rounded-2xl p-6 text-center">
         <i class="fa fa-gauge-high text-3xl text-purple-300 mb-3"></i>
@@ -107,26 +190,16 @@
       </div>
     </div>
 
-    <!-- CTA Buttons -->
-    <div class="flex flex-col sm:flex-row gap-4 justify-center">
-      <button onclick="startNewSession()" class="bg-white text-indigo-700 font-bold py-4 px-10 rounded-xl text-lg hover:bg-indigo-50 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1">
-        <i class="fa fa-plus mr-2"></i> New Session
-      </button>
-      <button onclick="showResumeSessionModal()" class="glass text-white font-bold py-4 px-10 rounded-xl text-lg hover:bg-white/20 transition-all border border-white/30">
-        <i class="fa fa-rotate-right mr-2"></i> Resume Session
-      </button>
+    <!-- User greeting -->
+    <div id="welcome-user-greeting" class="hidden mb-6 text-center">
+      <p class="text-indigo-200 text-lg">Welcome back, <span id="welcome-user-name" class="text-white font-bold"></span>!</p>
     </div>
 
-    <!-- Resume Session Modal -->
-    <div id="resume-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div class="card p-8 max-w-md w-full">
-        <h3 class="text-xl font-bold text-gray-800 mb-4"><i class="fa fa-key text-indigo-600 mr-2"></i>Enter Session ID</h3>
-        <input id="session-id-input" type="text" placeholder="Paste your session ID here..." class="w-full border-2 border-gray-200 rounded-xl p-3 mb-4 focus:border-indigo-500 outline-none" />
-        <div class="flex gap-3">
-          <button onclick="resumeSession()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all">Continue</button>
-          <button onclick="document.getElementById('resume-modal').classList.add('hidden')" class="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all">Cancel</button>
-        </div>
-      </div>
+    <!-- CTA Button -->
+    <div class="flex justify-center mb-10">
+      <button onclick="startNewSession()" class="bg-white text-indigo-700 font-bold py-4 px-10 rounded-xl text-lg hover:bg-indigo-50 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1">
+        <i class="fa fa-play mr-2"></i> Start Assessment
+      </button>
     </div>
   </div>
 
@@ -242,7 +315,24 @@
         <div id="missing-skills-chips" class="flex flex-wrap gap-2"></div>
       </div>
 
-      <div class="mt-8 flex justify-center">
+      <div class="mt-8 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <label class="block text-gray-700 font-semibold mb-3">
+          <i class="fa fa-sliders text-indigo-500 mr-2"></i>Number of Questions
+          <span id="q-count-label" class="ml-2 text-indigo-600 font-bold">30</span>
+        </label>
+        <input
+          id="q-count-slider"
+          type="range"
+          min="10" max="50" step="5" value="30"
+          class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+          oninput="document.getElementById('q-count-label').textContent = this.value"
+        />
+        <div class="flex justify-between text-xs text-gray-400 mt-1">
+          <span>10 (Quick)</span><span>30 (Balanced)</span><span>50 (Thorough)</span>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-center">
         <button onclick="startQuestionnaire()" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 px-16 rounded-xl text-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5">
           <i class="fa fa-list-check mr-2"></i> Start Assessment
         </button>
@@ -374,7 +464,7 @@
     <div class="glass rounded-3xl p-12 text-center max-w-sm mx-4">
       <div class="loader mx-auto mb-6"></div>
       <p id="loading-message" class="text-white font-bold text-lg">Processing...</p>
-      <p id="loading-sub" class="text-indigo-300 text-sm mt-2">Claude is thinking...</p>
+      <p id="loading-sub" class="text-indigo-300 text-sm mt-2">Analyzing...</p>
       <div class="mt-4 flex justify-center gap-1">
         <div class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay:0s"></div>
         <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay:0.1s"></div>
@@ -520,7 +610,7 @@ const state = {
 // -----------------------------------------------------------------------
 // View Management
 // -----------------------------------------------------------------------
-const VIEWS = ['welcome', 'setup', 'analysis', 'questionnaire', 'results', 'pathway'];
+const VIEWS = ['auth', 'welcome', 'setup', 'analysis', 'questionnaire', 'results', 'pathway'];
 const STEP_MAP = { setup: 1, analysis: 2, questionnaire: 3, results: 4, pathway: 5 };
 
 function showView(viewName) {
@@ -530,7 +620,7 @@ function showView(viewName) {
   state.currentView = viewName;
 
   const stepper = document.getElementById('stepper');
-  if (viewName === 'welcome') { stepper.classList.add('hidden'); }
+  if (viewName === 'welcome' || viewName === 'auth') { stepper.classList.add('hidden'); }
   else {
     stepper.classList.remove('hidden');
     updateStepper(viewName);
@@ -559,7 +649,7 @@ function updateStepper(viewName) {
 // -----------------------------------------------------------------------
 // Loading Overlay
 // -----------------------------------------------------------------------
-function showLoading(message = 'Processing...', sub = 'Claude is thinking... (10-30 seconds)') {
+function showLoading(message = 'Processing...', sub = 'This may take a few seconds...') {
   document.getElementById('loading-message').textContent = message;
   document.getElementById('loading-sub').textContent = sub;
   document.getElementById('loading-overlay').classList.remove('hidden');
@@ -609,19 +699,13 @@ async function startNewSession() {
   }
 }
 
-function showResumeSessionModal() {
-  document.getElementById('resume-modal').classList.remove('hidden');
-}
-
-async function resumeSession() {
-  const sid = document.getElementById('session-id-input').value.trim();
-  if (!sid) { showToast('Please enter a session ID', 'error'); return; }
+async function resumeSession(sid) {
+  if (!sid) return;
   showLoading('Loading session...', 'Fetching your session data');
   try {
     const session = await api('GET', `/sessions/${sid}`);
     state.sessionId = sid;
     localStorage.setItem('onboarding_session_id', sid);
-    document.getElementById('resume-modal').classList.add('hidden');
     await restoreSessionState(session);
     hideLoading();
   } catch (e) {
@@ -666,13 +750,176 @@ function copySessionId() {
   navigator.clipboard.writeText(state.sessionId).then(() => showToast('Session ID copied!'));
 }
 
-// On page load, check localStorage for existing session
-window.addEventListener('load', () => {
-  const saved = localStorage.getItem('onboarding_session_id');
-  if (saved) {
-    document.getElementById('session-id-input').value = saved;
+// -----------------------------------------------------------------------
+// FIREBASE CONFIGURATION — replace with your project's config
+// Get this from Firebase Console → Project Settings → Your apps → SDK setup
+// -----------------------------------------------------------------------
+const firebaseConfig = {
+  apiKey: "AIzaSyBDnt-TNjyl0jJmf-JIwn-SUa0iRpifOV8",
+  authDomain: "ai-skill-gap-finder.firebaseapp.com",
+  projectId: "ai-skill-gap-finder",
+  storageBucket: "ai-skill-gap-finder.firebasestorage.app",
+  messagingSenderId: "119716780632",
+  appId: "1:119716780632:web:3a1e9b213d7f60b934882d",
+  measurementId: "G-2XK9T8493D"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+// -----------------------------------------------------------------------
+// AUTH UI
+// -----------------------------------------------------------------------
+let authMode = 'login'; // 'login' | 'signup'
+
+function switchAuthTab(mode) {
+  authMode = mode;
+  const isSignup = mode === 'signup';
+  document.getElementById('auth-name-field').classList.toggle('hidden', !isSignup);
+  document.getElementById('auth-submit-label').textContent = isSignup ? 'Create Account' : 'Log In';
+  const submitBtn = document.getElementById('auth-submit-btn');
+  submitBtn.querySelector('i').className = isSignup ? 'fa fa-user-plus mr-2' : 'fa fa-right-to-bracket mr-2';
+  document.getElementById('auth-tab-login').className = `flex-1 py-2 rounded-lg text-sm font-bold transition-all ${!isSignup ? 'bg-white text-indigo-700 shadow' : 'text-gray-500 hover:text-gray-700'}`;
+  document.getElementById('auth-tab-signup').className = `flex-1 py-2 rounded-lg text-sm font-bold transition-all ${isSignup ? 'bg-white text-indigo-700 shadow' : 'text-gray-500 hover:text-gray-700'}`;
+  hideAuthError();
+}
+
+function showAuthError(msg) {
+  document.getElementById('auth-error-msg').textContent = msg;
+  document.getElementById('auth-error').classList.remove('hidden');
+}
+function hideAuthError() {
+  document.getElementById('auth-error').classList.add('hidden');
+}
+
+function togglePasswordVisibility() {
+  const input = document.getElementById('auth-password');
+  const icon = document.getElementById('password-eye-icon');
+  if (input.type === 'password') { input.type = 'text'; icon.className = 'fa fa-eye-slash'; }
+  else { input.type = 'password'; icon.className = 'fa fa-eye'; }
+}
+
+async function handleAuthSubmit() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const name = document.getElementById('auth-name').value.trim();
+  hideAuthError();
+
+  if (!email || !password) { showAuthError('Please enter your email and password.'); return; }
+  if (authMode === 'signup' && !name) { showAuthError('Please enter your name.'); return; }
+  if (password.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
+
+  const btn = document.getElementById('auth-submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i>Please wait...';
+
+  try {
+    if (authMode === 'signup') {
+      const cred = await auth.createUserWithEmailAndPassword(email, password);
+      await cred.user.updateProfile({ displayName: name });
+      await db.collection('users').doc(cred.user.uid).set({ name, email, createdAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    } else {
+      await auth.signInWithEmailAndPassword(email, password);
+    }
+    // onAuthStateChanged handles the rest
+  } catch (e) {
+    showAuthError(friendlyAuthError(e.code));
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa fa-right-to-bracket mr-2"></i><span id="auth-submit-label">${authMode === 'signup' ? 'Create Account' : 'Log In'}</span>`;
+  }
+}
+
+async function handleGoogleSignIn() {
+  try {
+    await auth.signInWithPopup(googleProvider);
+  } catch (e) {
+    showAuthError(friendlyAuthError(e.code));
+  }
+}
+
+async function signOut() {
+  localStorage.removeItem('onboarding_session_id');
+  await auth.signOut();
+}
+
+function friendlyAuthError(code) {
+  const map = {
+    'auth/user-not-found': 'No account found with this email.',
+    'auth/wrong-password': 'Incorrect password.',
+    'auth/email-already-in-use': 'An account with this email already exists.',
+    'auth/invalid-email': 'Please enter a valid email address.',
+    'auth/weak-password': 'Password must be at least 6 characters.',
+    'auth/too-many-requests': 'Too many attempts. Please try again later.',
+    'auth/popup-closed-by-user': 'Google sign-in was cancelled.',
+    'auth/popup-blocked': 'Pop-up was blocked by your browser. Please allow pop-ups for this site and try again.',
+    'auth/invalid-credential': 'Incorrect email or password.',
+    'auth/operation-not-allowed': 'This sign-in method is not enabled. Please contact support.',
+    'auth/unauthorized-domain': 'This domain is not authorised for Google sign-in. Add it in Firebase Console → Authentication → Settings → Authorised domains.',
+  };
+  return map[code] || `Authentication failed (${code}). Please try again.`;
+}
+
+// -----------------------------------------------------------------------
+// FIREBASE AUTH STATE LISTENER
+// -----------------------------------------------------------------------
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    // Update user bar in stepper
+    const initials = (user.displayName || user.email || '?').charAt(0).toUpperCase();
+    document.getElementById('user-avatar').textContent = initials;
+    document.getElementById('user-display-name').textContent = user.displayName || user.email;
+    document.getElementById('user-bar').classList.remove('hidden');
+
+    // Update welcome greeting
+    const welcomeName = user.displayName || user.email.split('@')[0];
+    document.getElementById('welcome-user-name').textContent = welcomeName;
+    document.getElementById('welcome-user-greeting').classList.remove('hidden');
+
+    // Go straight to the onboarding engine
+    await startNewSession();
+  } else {
+    document.getElementById('user-bar').classList.add('hidden');
+    document.getElementById('welcome-user-greeting').classList.add('hidden');
+    showView('auth');
   }
 });
+
+// -----------------------------------------------------------------------
+// FIRESTORE — Save & Load sessions
+// -----------------------------------------------------------------------
+async function saveSessionToFirestore(extraData = {}) {
+  const user = auth.currentUser;
+  if (!user || !state.sessionId) return;
+
+  const data = {
+    session_id: state.sessionId,
+    updated_at: firebase.firestore.FieldValue.serverTimestamp(),
+    candidate_name: state.resumeData?.candidate_name || null,
+    role_title: state.jdData?.role_title || null,
+    overall_fit_score: state.skillGaps?.overall_fit_score || null,
+    skill_gaps_count: state.skillGaps?.skill_gaps?.length || 0,
+    missing_skills_count: state.skillGaps?.missing_skills?.length || 0,
+    skill_gaps: state.skillGaps || null,
+    proficiency_scores: state.proficiencyScores || null,
+    status: state.currentView,
+    ...extraData
+  };
+
+  // Remove undefined/null pathway (can be large — store only if present)
+  if (state.pathway) data.pathway = state.pathway;
+
+  try {
+    await db.collection('users').doc(user.uid)
+      .collection('sessions').doc(state.sessionId)
+      .set(data, { merge: true });
+  } catch (e) {
+    console.warn('Firestore save failed:', e.message);
+  }
+}
+
+// On page load — handled by onAuthStateChanged above
+window.addEventListener('load', () => {});
 
 // -----------------------------------------------------------------------
 // FILE UPLOAD (drag & drop)
@@ -696,7 +943,7 @@ function handleFileSelect(e) {
 }
 
 async function uploadResumeFile(file) {
-  showLoading('Parsing resume...', 'Claude is extracting skills and experience');
+  showLoading('Parsing resume...', 'Extracting skills and experience');
   const formData = new FormData();
   formData.append('file', file);
   try {
@@ -734,7 +981,7 @@ async function runAnalysis() {
   try {
     // Step 1: Upload resume text if not already uploaded
     if (resumeText && !state.resumeData) {
-      showLoading('Parsing resume...', 'Claude is extracting skills and experience from your resume');
+      showLoading('Parsing resume...', 'Extracting skills and experience from your resume');
       const resumeResult = await api('POST', `/sessions/${state.sessionId}/resume/text`, { text: resumeText });
       state.resumeData = resumeResult.resume_data;
     } else if (resumeText) {
@@ -744,18 +991,19 @@ async function runAnalysis() {
     }
 
     // Step 2: Upload JD
-    showLoading('Parsing job description...', 'Claude is extracting role requirements');
+    showLoading('Parsing job description...', 'Extracting role requirements');
     const jdResult = await api('POST', `/sessions/${state.sessionId}/jd`, { text: jdText });
     state.jdData = jdResult.jd_data;
 
     // Step 3: Analyze gap
-    showLoading('Analyzing skill gaps...', 'Claude is comparing your profile to the role requirements');
+    showLoading('Analyzing skill gaps...', 'Comparing your profile to the role requirements');
     const gapResult = await api('POST', `/sessions/${state.sessionId}/analyze`);
     state.skillGaps = gapResult.skill_gaps;
 
     hideLoading();
     renderAnalysis(state.skillGaps, state.resumeData?.candidate_name);
     showView('analysis');
+    saveSessionToFirestore({ status: 'analysis' });
     showToast('Analysis complete!');
   } catch (e) {
     hideLoading();
@@ -821,9 +1069,10 @@ function renderAnalysis(gaps, candidateName) {
 // QUESTIONNAIRE
 // -----------------------------------------------------------------------
 async function startQuestionnaire() {
-  showLoading('Generating questionnaire...', 'Claude is creating 35-40 adaptive questions for your skill gaps (30s)');
+  const numQuestions = parseInt(document.getElementById('q-count-slider')?.value || '30');
+  showLoading('Generating questionnaire...', `Generating ${numQuestions} adaptive questions for your skill gaps`);
   try {
-    const data = await api('POST', `/sessions/${state.sessionId}/questionnaire/generate`);
+    const data = await api('POST', `/sessions/${state.sessionId}/questionnaire/generate`, { num_questions: numQuestions });
     state.questions = data.questions;
     state.questionnaireState = { answers: {}, currentIndex: 0, completed: false };
     state.selectedAnswer = null;
@@ -872,8 +1121,10 @@ function renderQuestion(idx) {
   optionsEl.innerHTML = '';
   const isAnswered = !!state.questionnaireState.answers[String(q.id)];
 
-  ['A', 'B', 'C', 'D'].forEach(letter => {
+  ['A', 'B', 'C', 'D', 'E'].forEach(letter => {
     const text = q.options[letter];
+    if (!text) return;
+    const isIDontKnow = letter === 'E';
     let btnClass = 'option-btn w-full text-left p-4 rounded-xl flex items-start gap-3 cursor-pointer ';
     if (isAnswered) {
       if (letter === q.correct_answer) btnClass += 'correct';
@@ -882,11 +1133,12 @@ function renderQuestion(idx) {
     } else if (state.selectedAnswer === letter) {
       btnClass += 'selected';
     }
+    const badgeExtra = letter === q.correct_answer && isAnswered ? 'bg-green-500 border-green-500 text-white' : isIDontKnow ? 'text-gray-400 border-gray-300' : '';
 
     optionsEl.innerHTML += `
-      <button class="${btnClass}" onclick="selectOption('${letter}')" ${isAnswered ? 'disabled' : ''}>
-        <span class="w-8 h-8 rounded-lg border-2 border-current flex items-center justify-center font-bold text-sm shrink-0 ${letter === q.correct_answer && isAnswered ? 'bg-green-500 border-green-500 text-white' : ''}">${letter}</span>
-        <span class="text-gray-800 text-sm">${text}</span>
+      <button class="${btnClass}${isIDontKnow ? ' opacity-80' : ''}" onclick="selectOption('${letter}')" ${isAnswered ? 'disabled' : ''}>
+        <span class="w-8 h-8 rounded-lg border-2 border-current flex items-center justify-center font-bold text-sm shrink-0 ${badgeExtra}">${letter}</span>
+        <span class="${isIDontKnow ? 'text-gray-400 italic' : 'text-gray-800'} text-sm">${text}</span>
       </button>`;
   });
 
@@ -993,6 +1245,7 @@ async function finishQuestionnaire() {
     hideLoading();
     renderProficiencyResults(data.proficiency_scores);
     showView('results');
+    saveSessionToFirestore({ status: 'results' });
     showToast('Assessment complete!');
   } catch (e) {
     hideLoading();
@@ -1050,7 +1303,7 @@ function renderProficiencyResults(scores) {
 // LEARNING PATHWAY
 // -----------------------------------------------------------------------
 async function generatePathway() {
-  showLoading('Generating personalized pathway...', 'Claude is designing your week-by-week learning plan (30s)');
+  showLoading('Generating personalized pathway...', 'Designing your personalized week-by-week learning plan');
   try {
     const data = await api('POST', `/sessions/${state.sessionId}/pathway/generate`);
     state.pathway = data.pathway;
@@ -1059,6 +1312,7 @@ async function generatePathway() {
     hideLoading();
     renderPathway();
     showView('pathway');
+    saveSessionToFirestore({ status: 'pathway' });
     showToast('Learning pathway generated!');
   } catch (e) {
     hideLoading();
@@ -1227,7 +1481,7 @@ async function openSkillTest(skillName, targetLevel) {
   document.getElementById('test-question-view').classList.remove('hidden');
   document.getElementById('test-results-view').classList.add('hidden');
 
-  showLoading('Generating test...', `Claude is creating 8 ${targetLevel}-level questions for ${skillName}`);
+  showLoading('Generating test...', `Generating 8 ${targetLevel}-level questions for ${skillName}`);
   try {
     const data = await api('POST', `/sessions/${state.sessionId}/skills/${encodeURIComponent(skillName)}/test/generate`);
     state.testQuestions = data.questions;
@@ -1342,7 +1596,7 @@ async function submitSkillTest() {
   const allAnswered = state.testQuestions.every(q => state.testAnswers[String(q.id)]);
   if (!allAnswered) { showToast('Please answer all questions first', 'error'); return; }
 
-  showLoading('Evaluating test...', 'Claude is grading your answers and generating feedback');
+  showLoading('Evaluating test...', 'Grading your answers and generating feedback');
   try {
     const data = await api('POST', `/sessions/${state.sessionId}/skills/${encodeURIComponent(state.testSkillName)}/test/submit`, {
       answers: state.testAnswers
