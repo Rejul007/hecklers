@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Onboarding Engine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    /* Custom gradient and animation styles */
+    body { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 30%, #4338ca 60%, #6d28d9 100%); min-height: 100vh; }
+    .glass { background: rgba(255,255,255,0.07); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.15); }
+    .card { background: white; border-radius: 1rem; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .gradient-text { background: linear-gradient(135deg, #818cf8, #a78bfa, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .pulse-ring { animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+    @keyframes pulse-ring { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(99,102,241,0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(99,102,241,0); } 100% { transform: scale(0.95); } }
+    .fade-in { animation: fadeIn 0.5s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .slide-in { animation: slideIn 0.4s ease-out; }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+    .progress-bar { transition: width 0.6s ease; }
+    .option-btn { transition: all 0.2s ease; border: 2px solid #e5e7eb; }
+    .option-btn:hover { border-color: #6366f1; background: #eef2ff; transform: translateX(4px); }
+    .option-btn.selected { border-color: #6366f1; background: #eef2ff; }
+    .option-btn.correct { border-color: #10b981; background: #d1fae5; }
+    .option-btn.incorrect { border-color: #ef4444; background: #fee2e2; }
+    .skill-chip { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; margin: 2px; }
+    .stepper-item { position: relative; }
+    .stepper-item:not(:last-child)::after { content: ''; position: absolute; top: 20px; left: calc(50% + 20px); right: calc(-50% + 20px); height: 2px; background: #e5e7eb; }
+    .stepper-item.active::after, .stepper-item.done::after { background: #6366f1; }
+    .loader { border: 3px solid rgba(99,102,241,0.2); border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .confetti { animation: confetti-fall 3s ease-in forwards; }
+    @keyframes confetti-fall { from { transform: translateY(-20px) rotate(0deg); opacity: 1; } to { transform: translateY(100px) rotate(720deg); opacity: 0; } }
+    .severity-critical { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+    .severity-high { background: #fff7ed; color: #ea580c; border-color: #fdba74; }
+    .severity-medium { background: #fefce8; color: #ca8a04; border-color: #fde047; }
+    .severity-low { background: #f0fdf4; color: #16a34a; border-color: #86efac; }
+    .bar-fill { transition: width 1s ease; background: linear-gradient(90deg, #6366f1, #a78bfa); }
+    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #f1f5f9; } ::-webkit-scrollbar-thumb { background: #a5b4fc; border-radius: 3px; }
+  </style>
+</head>
+<body class="h-full">
+
+<!-- =====================================================================
+     MAIN APP CONTAINER
+====================================================================== -->
+<div id="app" class="min-h-screen py-6 px-4">
+
+  <!-- TOP NAV / STEPPER -->
+  <div id="stepper" class="max-w-5xl mx-auto mb-8 hidden">
+    <div class="glass rounded-2xl p-4">
+      <div class="flex items-center justify-between">
+        <div id="step-1" class="stepper-item flex flex-col items-center flex-1">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 bg-gray-200 text-gray-500" id="step-icon-1"><i class="fa fa-upload"></i></div>
+          <span class="text-white text-xs mt-1 font-medium">Setup</span>
+        </div>
+        <div id="step-2" class="stepper-item flex flex-col items-center flex-1">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 bg-gray-200 text-gray-500" id="step-icon-2"><i class="fa fa-magnifying-glass-chart"></i></div>
+          <span class="text-white text-xs mt-1 font-medium">Analysis</span>
+        </div>
+        <div id="step-3" class="stepper-item flex flex-col items-center flex-1">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 bg-gray-200 text-gray-500" id="step-icon-3"><i class="fa fa-list-check"></i></div>
+          <span class="text-white text-xs mt-1 font-medium">Assessment</span>
+        </div>
+        <div id="step-4" class="stepper-item flex flex-col items-center flex-1">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 bg-gray-200 text-gray-500" id="step-icon-4"><i class="fa fa-chart-bar"></i></div>
+          <span class="text-white text-xs mt-1 font-medium">Results</span>
+        </div>
+        <div id="step-5" class="stepper-item flex flex-col items-center flex-1">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 bg-gray-200 text-gray-500" id="step-icon-5"><i class="fa fa-road"></i></div>
+          <span class="text-white text-xs mt-1 font-medium">Pathway</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       VIEW: WELCOME
+  ====================================================================== -->
+  <div id="view-welcome" class="max-w-4xl mx-auto fade-in">
+    <div class="text-center mb-12 mt-8">
+      <div class="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-white/10 backdrop-blur mb-6 pulse-ring">
+        <i class="fa fa-brain text-5xl text-white"></i>
+      </div>
+      <h1 class="text-5xl font-black text-white mb-4">AI Onboarding Engine</h1>
+      <p class="text-xl text-indigo-200 mb-2">Adaptive • Personalized • Intelligent</p>
+      <p class="text-indigo-300 max-w-2xl mx-auto">Claude-powered skill gap analysis and personalized learning pathways for modern hiring.</p>
+    </div>
+
+    <!-- Feature Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+      <div class="glass rounded-2xl p-6 text-center">
+        <i class="fa fa-file-magnifying-glass text-3xl text-indigo-300 mb-3"></i>
+        <h3 class="text-white font-bold mb-2">Resume Intelligence</h3>
+        <p class="text-indigo-300 text-sm">Claude extracts skills, experience, and education from any resume format</p>
+      </div>
+      <div class="glass rounded-2xl p-6 text-center">
+        <i class="fa fa-gauge-high text-3xl text-purple-300 mb-3"></i>
+        <h3 class="text-white font-bold mb-2">Adaptive Assessment</h3>
+        <p class="text-indigo-300 text-sm">35-40 MCQs intelligently calibrated to your skill level across all gap areas</p>
+      </div>
+      <div class="glass rounded-2xl p-6 text-center">
+        <i class="fa fa-map-location-dot text-3xl text-violet-300 mb-3"></i>
+        <h3 class="text-white font-bold mb-2">Learning Pathways</h3>
+        <p class="text-indigo-300 text-sm">Personalized week-by-week roadmap with curated resources per skill</p>
+      </div>
+    </div>
+
+    <!-- CTA Buttons -->
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <button onclick="startNewSession()" class="bg-white text-indigo-700 font-bold py-4 px-10 rounded-xl text-lg hover:bg-indigo-50 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1">
+        <i class="fa fa-plus mr-2"></i> New Session
+      </button>
+      <button onclick="showResumeSessionModal()" class="glass text-white font-bold py-4 px-10 rounded-xl text-lg hover:bg-white/20 transition-all border border-white/30">
+        <i class="fa fa-rotate-right mr-2"></i> Resume Session
+      </button>
+    </div>
+
+    <!-- Resume Session Modal -->
+    <div id="resume-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div class="card p-8 max-w-md w-full">
+        <h3 class="text-xl font-bold text-gray-800 mb-4"><i class="fa fa-key text-indigo-600 mr-2"></i>Enter Session ID</h3>
+        <input id="session-id-input" type="text" placeholder="Paste your session ID here..." class="w-full border-2 border-gray-200 rounded-xl p-3 mb-4 focus:border-indigo-500 outline-none" />
+        <div class="flex gap-3">
+          <button onclick="resumeSession()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all">Continue</button>
+          <button onclick="document.getElementById('resume-modal').classList.add('hidden')" class="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       VIEW: SETUP
+  ====================================================================== -->
+  <div id="view-setup" class="max-w-5xl mx-auto hidden fade-in">
+    <div class="card p-8">
+      <div class="flex items-center justify-between mb-8">
+        <div>
+          <h2 class="text-2xl font-black text-gray-900"><i class="fa fa-upload text-indigo-600 mr-2"></i>Upload Resume & Job Description</h2>
+          <p class="text-gray-500 mt-1">Session ID: <span id="setup-session-id" class="font-mono text-xs bg-gray-100 px-2 py-1 rounded"></span></p>
+        </div>
+        <button onclick="copySessionId()" class="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1 border border-indigo-200 px-3 py-2 rounded-lg hover:bg-indigo-50">
+          <i class="fa fa-copy"></i> Copy ID
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Resume Column -->
+        <div>
+          <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa fa-id-card text-indigo-500 mr-2"></i>Resume</h3>
+
+          <!-- Drag Drop Zone -->
+          <div id="drop-zone" class="border-2 border-dashed border-indigo-300 rounded-xl p-8 text-center mb-4 hover:border-indigo-500 hover:bg-indigo-50/50 transition-all cursor-pointer" onclick="document.getElementById('file-input').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+            <i class="fa fa-cloud-arrow-up text-4xl text-indigo-400 mb-3"></i>
+            <p class="text-gray-600 font-medium">Drop PDF here or click to upload</p>
+            <p class="text-gray-400 text-sm mt-1">Supports PDF and .txt files</p>
+            <input id="file-input" type="file" class="hidden" accept=".pdf,.txt" onchange="handleFileSelect(event)" />
+          </div>
+
+          <div class="relative mb-4">
+            <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-200"></div></div>
+            <div class="relative flex justify-center text-sm"><span class="bg-white px-3 text-gray-400">or paste text</span></div>
+          </div>
+
+          <textarea id="resume-text" placeholder="Paste resume text here..." class="w-full border-2 border-gray-200 rounded-xl p-4 h-48 resize-none focus:border-indigo-500 outline-none text-sm font-mono"></textarea>
+          <div id="resume-status" class="mt-2 text-sm hidden"></div>
+        </div>
+
+        <!-- Job Description Column -->
+        <div>
+          <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa fa-briefcase text-purple-500 mr-2"></i>Job Description</h3>
+          <textarea id="jd-text" placeholder="Paste the job description here...&#10;&#10;Include: role title, required skills, responsibilities, experience requirements..." class="w-full border-2 border-gray-200 rounded-xl p-4 h-64 resize-none focus:border-purple-500 outline-none text-sm"></textarea>
+          <div id="jd-status" class="mt-2 text-sm hidden"></div>
+
+          <!-- Quick Tips -->
+          <div class="mt-4 bg-purple-50 rounded-xl p-4">
+            <p class="text-purple-700 text-xs font-semibold mb-2"><i class="fa fa-lightbulb mr-1"></i> Tips for best results:</p>
+            <ul class="text-purple-600 text-xs space-y-1">
+              <li>• Include the full job title and required skills</li>
+              <li>• Paste years of experience requirements</li>
+              <li>• Include tech stack and tools mentioned</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analyze Button -->
+      <div class="mt-8 flex justify-center">
+        <button id="analyze-btn" onclick="runAnalysis()" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 px-16 rounded-xl text-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50">
+          <i class="fa fa-magnifying-glass-chart mr-2"></i> Analyze Skill Gap
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       VIEW: ANALYSIS RESULTS
+  ====================================================================== -->
+  <div id="view-analysis" class="max-w-5xl mx-auto hidden fade-in">
+    <div class="card p-8">
+      <div class="flex items-center justify-between mb-8">
+        <h2 class="text-2xl font-black text-gray-900"><i class="fa fa-magnifying-glass-chart text-indigo-600 mr-2"></i>Skill Gap Analysis</h2>
+        <span id="candidate-name-badge" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full font-semibold text-sm"></span>
+      </div>
+
+      <!-- Fit Score -->
+      <div class="flex flex-col sm:flex-row items-center gap-8 mb-8">
+        <div class="text-center">
+          <div class="relative inline-flex items-center justify-center">
+            <svg class="w-36 h-36 transform -rotate-90" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="52" fill="none" stroke="#e5e7eb" stroke-width="12"/>
+              <circle id="fit-score-circle" cx="60" cy="60" r="52" fill="none" stroke="#6366f1" stroke-width="12" stroke-linecap="round" stroke-dasharray="327" stroke-dashoffset="327" style="transition: stroke-dashoffset 1.5s ease;"/>
+            </svg>
+            <div class="absolute text-center">
+              <div id="fit-score-text" class="text-3xl font-black text-gray-900">0%</div>
+              <div class="text-xs text-gray-500 font-medium">Fit Score</div>
+            </div>
+          </div>
+        </div>
+        <div class="flex-1">
+          <h3 class="font-bold text-gray-700 mb-3"><i class="fa fa-circle-check text-green-500 mr-1"></i> Strong Matches</h3>
+          <div id="strong-matches" class="flex flex-wrap gap-2 mb-4"></div>
+          <p id="analysis-summary" class="text-gray-600 text-sm leading-relaxed"></p>
+        </div>
+      </div>
+
+      <!-- Skill Gaps Table -->
+      <div>
+        <h3 class="font-bold text-gray-800 mb-4"><i class="fa fa-triangle-exclamation text-orange-500 mr-1"></i> Skill Gaps to Address</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="bg-gray-50"><th class="text-left p-3 font-bold text-gray-600 rounded-tl-lg">Skill</th><th class="text-left p-3 font-bold text-gray-600">Your Level</th><th class="text-left p-3 font-bold text-gray-600">Required</th><th class="text-left p-3 font-bold text-gray-600">Gap</th><th class="text-left p-3 font-bold text-gray-600 rounded-tr-lg">Reason</th></tr></thead>
+            <tbody id="skill-gaps-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Missing Skills -->
+      <div id="missing-skills-section" class="mt-6 hidden">
+        <h3 class="font-bold text-gray-800 mb-3"><i class="fa fa-xmark-circle text-red-500 mr-1"></i> Missing Skills</h3>
+        <div id="missing-skills-chips" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="mt-8 flex justify-center">
+        <button onclick="startQuestionnaire()" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 px-16 rounded-xl text-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+          <i class="fa fa-list-check mr-2"></i> Start Assessment
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       VIEW: QUESTIONNAIRE
+  ====================================================================== -->
+  <div id="view-questionnaire" class="max-w-3xl mx-auto hidden fade-in">
+    <!-- Progress Bar -->
+    <div class="glass rounded-2xl p-4 mb-6">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-white text-sm font-medium">Assessment Progress</span>
+        <span id="q-progress-text" class="text-white text-sm font-bold">0 / 0</span>
+      </div>
+      <div class="bg-white/20 rounded-full h-3">
+        <div id="q-progress-bar" class="bar-fill h-3 rounded-full progress-bar" style="width:0%"></div>
+      </div>
+      <div class="flex items-center justify-between mt-2">
+        <span id="q-score-text" class="text-indigo-200 text-xs">Score: 0 correct</span>
+        <span id="q-skill-text" class="text-indigo-200 text-xs"></span>
+      </div>
+    </div>
+
+    <!-- Question Card -->
+    <div id="question-card" class="card p-8 slide-in">
+      <div class="flex items-center gap-3 mb-6">
+        <span id="q-skill-badge" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide"></span>
+        <span id="q-level-badge" class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide"></span>
+        <span id="q-number-badge" class="ml-auto text-gray-400 text-sm font-medium"></span>
+      </div>
+
+      <h3 id="q-question-text" class="text-xl font-bold text-gray-900 mb-8 leading-relaxed"></h3>
+
+      <div id="q-options" class="space-y-3 mb-8"></div>
+
+      <!-- Feedback (shown after answering) -->
+      <div id="q-feedback" class="hidden rounded-xl p-4 mb-6 transition-all">
+        <div class="flex items-start gap-3">
+          <i id="q-feedback-icon" class="text-xl mt-0.5"></i>
+          <div>
+            <p id="q-feedback-result" class="font-bold mb-1"></p>
+            <p id="q-feedback-explanation" class="text-sm leading-relaxed"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-4">
+        <button id="q-submit-btn" onclick="submitAnswer()" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+          Submit Answer
+        </button>
+        <button id="q-finish-btn" onclick="finishQuestionnaire()" class="hidden flex-1 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-all">
+          <i class="fa fa-flag-checkered mr-1"></i> Finish Assessment
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       VIEW: PROFICIENCY RESULTS
+  ====================================================================== -->
+  <div id="view-results" class="max-w-4xl mx-auto hidden fade-in">
+    <div class="card p-8">
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-2xl mb-4">
+          <i class="fa fa-trophy text-3xl text-green-600"></i>
+        </div>
+        <h2 class="text-2xl font-black text-gray-900">Assessment Complete!</h2>
+        <p class="text-gray-500 mt-2">Here are your proficiency scores per skill</p>
+      </div>
+
+      <div id="proficiency-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8"></div>
+
+      <div class="flex justify-center">
+        <button onclick="generatePathway()" class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 px-16 rounded-xl text-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+          <i class="fa fa-map-location-dot mr-2"></i> Generate Learning Pathway
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       VIEW: LEARNING PATHWAY
+  ====================================================================== -->
+  <div id="view-pathway" class="max-w-5xl mx-auto hidden fade-in">
+    <!-- Header -->
+    <div class="glass rounded-2xl p-6 mb-6">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-black text-white"><i class="fa fa-road mr-2"></i>Your Learning Pathway</h2>
+          <p id="pathway-overview" class="text-indigo-200 mt-1 text-sm max-w-2xl"></p>
+        </div>
+        <div class="glass rounded-xl p-4 text-center min-w-28">
+          <div id="total-weeks" class="text-3xl font-black text-white"></div>
+          <div class="text-indigo-300 text-xs font-medium">weeks total</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Overall Progress -->
+    <div class="card p-6 mb-6">
+      <h3 class="font-bold text-gray-800 mb-4"><i class="fa fa-chart-line text-indigo-600 mr-2"></i>Overall Progress</h3>
+      <div class="grid grid-cols-3 gap-4 text-center">
+        <div class="bg-gray-50 rounded-xl p-4">
+          <div id="skills-total" class="text-2xl font-black text-gray-900">0</div>
+          <div class="text-gray-500 text-xs font-medium mt-1">Total Skills</div>
+        </div>
+        <div class="bg-green-50 rounded-xl p-4">
+          <div id="skills-completed" class="text-2xl font-black text-green-600">0</div>
+          <div class="text-gray-500 text-xs font-medium mt-1">Completed</div>
+        </div>
+        <div class="bg-indigo-50 rounded-xl p-4">
+          <div id="skills-in-progress" class="text-2xl font-black text-indigo-600">0</div>
+          <div class="text-gray-500 text-xs font-medium mt-1">In Progress</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Skill Cards -->
+    <div id="pathway-skills" class="space-y-6"></div>
+  </div>
+
+  <!-- =====================================================================
+       LOADING OVERLAY
+  ====================================================================== -->
+  <div id="loading-overlay" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+    <div class="glass rounded-3xl p-12 text-center max-w-sm mx-4">
+      <div class="loader mx-auto mb-6"></div>
+      <p id="loading-message" class="text-white font-bold text-lg">Processing...</p>
+      <p id="loading-sub" class="text-indigo-300 text-sm mt-2">Claude is thinking...</p>
+      <div class="mt-4 flex justify-center gap-1">
+        <div class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay:0s"></div>
+        <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay:0.1s"></div>
+        <div class="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style="animation-delay:0.2s"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       SKILL TEST MODAL
+  ====================================================================== -->
+  <div id="skill-test-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-40 p-4 overflow-y-auto">
+    <div class="card w-full max-w-2xl my-4">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 rounded-t-2xl">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 id="test-skill-name" class="text-white text-xl font-black"></h3>
+            <p id="test-target-level" class="text-indigo-200 text-sm mt-1"></p>
+          </div>
+          <button onclick="closeSkillTest()" class="text-white/70 hover:text-white text-2xl transition-colors"><i class="fa fa-xmark"></i></button>
+        </div>
+        <!-- Test Progress -->
+        <div id="test-progress-section" class="mt-4">
+          <div class="flex justify-between text-sm text-indigo-200 mb-1">
+            <span>Question <span id="test-q-current">1</span> of <span id="test-q-total">8</span></span>
+            <span id="test-q-answered">0 answered</span>
+          </div>
+          <div class="bg-white/20 rounded-full h-2">
+            <div id="test-progress-bar" class="bg-white h-2 rounded-full transition-all duration-500" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Test Body -->
+      <div id="test-body" class="p-8">
+        <!-- Question View -->
+        <div id="test-question-view">
+          <div class="flex items-center gap-2 mb-4">
+            <span id="test-q-num-badge" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold"></span>
+            <span id="test-concept-badge" class="text-gray-400 text-xs"></span>
+          </div>
+          <p id="test-question-text" class="text-gray-900 font-bold text-lg mb-6 leading-relaxed"></p>
+          <div id="test-options" class="space-y-3 mb-6"></div>
+          <div class="flex gap-3">
+            <button id="test-prev-btn" onclick="testNavQuestion(-1)" class="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all disabled:opacity-40">
+              <i class="fa fa-chevron-left mr-1"></i> Previous
+            </button>
+            <button id="test-next-btn" onclick="testNavQuestion(1)" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-40">
+              Next <i class="fa fa-chevron-right ml-1"></i>
+            </button>
+            <button id="test-submit-all-btn" onclick="submitSkillTest()" class="hidden flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition-all">
+              <i class="fa fa-paper-plane mr-1"></i> Submit Test
+            </button>
+          </div>
+        </div>
+
+        <!-- Results View -->
+        <div id="test-results-view" class="hidden">
+          <!-- Pass animation -->
+          <div id="test-pass-banner" class="hidden text-center mb-6">
+            <div class="text-6xl mb-2">🎉</div>
+            <div class="text-3xl font-black text-green-600">Passed!</div>
+          </div>
+          <div id="test-fail-banner" class="hidden text-center mb-6">
+            <div class="text-6xl mb-2">📚</div>
+            <div class="text-3xl font-black text-orange-600">Keep Practicing</div>
+          </div>
+
+          <!-- Score -->
+          <div class="flex items-center gap-6 mb-6">
+            <div class="text-center">
+              <div id="test-score-display" class="text-5xl font-black"></div>
+              <div class="text-gray-500 text-sm">Score</div>
+            </div>
+            <div class="flex-1">
+              <div class="bg-gray-100 rounded-full h-4">
+                <div id="test-score-bar" class="h-4 rounded-full transition-all duration-1000" style="width:0%"></div>
+              </div>
+              <div class="flex justify-between text-xs text-gray-400 mt-1">
+                <span>0%</span><span class="font-medium text-gray-600">Pass: 75%</span><span>100%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Feedback -->
+          <div id="test-feedback-box" class="bg-indigo-50 rounded-xl p-4 mb-6">
+            <p id="test-feedback-text" class="text-indigo-800 text-sm leading-relaxed"></p>
+          </div>
+
+          <!-- Wrong Answers -->
+          <div id="test-wrong-section" class="hidden">
+            <h4 class="font-bold text-gray-800 mb-3"><i class="fa fa-circle-xmark text-red-500 mr-1"></i>Review These Concepts:</h4>
+            <div id="test-wrong-list" class="space-y-3"></div>
+          </div>
+
+          <div class="flex gap-3 mt-6">
+            <button onclick="closeSkillTest()" class="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50">Close</button>
+            <button id="test-retry-btn" onclick="retrySkillTest()" class="hidden flex-1 bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600">
+              <i class="fa fa-rotate-right mr-1"></i> Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="hidden fixed bottom-6 right-6 bg-gray-900 text-white px-6 py-3 rounded-xl shadow-2xl text-sm font-medium z-50 flex items-center gap-2">
+    <i id="toast-icon" class="fa fa-circle-check text-green-400"></i>
+    <span id="toast-msg"></span>
+  </div>
+</div>
+
+<!-- =====================================================================
+     JAVASCRIPT APPLICATION
+====================================================================== -->
+<script>
+// -----------------------------------------------------------------------
+// Application State
+// -----------------------------------------------------------------------
+const state = {
+  sessionId: null,
+  currentView: 'welcome',
+  resumeData: null,
+  jdData: null,
+  skillGaps: null,
+  questions: [],
+  questionnaireState: { answers: {}, currentIndex: 0, completed: false },
+  selectedAnswer: null,
+  correctCount: 0,
+  proficiencyScores: null,
+  pathway: null,
+  skillProgress: {},
+  // Skill test modal state
+  testSkillName: null,
+  testQuestions: [],
+  testAnswers: {},
+  testCurrentIndex: 0,
+  testTargetLevel: null,
+};
+
+// -----------------------------------------------------------------------
+// View Management
+// -----------------------------------------------------------------------
+const VIEWS = ['welcome', 'setup', 'analysis', 'questionnaire', 'results', 'pathway'];
+const STEP_MAP = { setup: 1, analysis: 2, questionnaire: 3, results: 4, pathway: 5 };
+
+function showView(viewName) {
+  VIEWS.forEach(v => document.getElementById(`view-${v}`)?.classList.add('hidden'));
+  document.getElementById(`view-${viewName}`)?.classList.remove('hidden');
+  document.getElementById(`view-${viewName}`)?.classList.add('fade-in');
+  state.currentView = viewName;
+
+  const stepper = document.getElementById('stepper');
+  if (viewName === 'welcome') { stepper.classList.add('hidden'); }
+  else {
+    stepper.classList.remove('hidden');
+    updateStepper(viewName);
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateStepper(viewName) {
+  const currentStep = STEP_MAP[viewName] || 0;
+  for (let i = 1; i <= 5; i++) {
+    const icon = document.getElementById(`step-icon-${i}`);
+    const item = document.getElementById(`step-${i}`);
+    if (i < currentStep) {
+      icon.className = 'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 bg-green-500 text-white';
+      item.classList.add('done'); item.classList.remove('active');
+    } else if (i === currentStep) {
+      icon.className = 'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 bg-indigo-600 text-white ring-4 ring-indigo-200';
+      item.classList.add('active'); item.classList.remove('done');
+    } else {
+      icon.className = 'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 bg-gray-200 text-gray-500';
+      item.classList.remove('done', 'active');
+    }
+  }
+}
+
+// -----------------------------------------------------------------------
+// Loading Overlay
+// -----------------------------------------------------------------------
+function showLoading(message = 'Processing...', sub = 'Claude is thinking... (10-30 seconds)') {
+  document.getElementById('loading-message').textContent = message;
+  document.getElementById('loading-sub').textContent = sub;
+  document.getElementById('loading-overlay').classList.remove('hidden');
+}
+function hideLoading() { document.getElementById('loading-overlay').classList.add('hidden'); }
+
+// -----------------------------------------------------------------------
+// Toast Notifications
+// -----------------------------------------------------------------------
+function showToast(message, type = 'success') {
+  const toast = document.getElementById('toast');
+  const icon = document.getElementById('toast-icon');
+  document.getElementById('toast-msg').textContent = message;
+  icon.className = type === 'success' ? 'fa fa-circle-check text-green-400' : 'fa fa-circle-xmark text-red-400';
+  toast.classList.remove('hidden');
+  setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+
+// -----------------------------------------------------------------------
+// API Helpers
+// -----------------------------------------------------------------------
+async function api(method, path, body = null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(`/api${path}`, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'API request failed');
+  return data;
+}
+
+// -----------------------------------------------------------------------
+// SESSION MANAGEMENT
+// -----------------------------------------------------------------------
+async function startNewSession() {
+  showLoading('Creating session...', 'Setting up your onboarding session');
+  try {
+    const data = await api('POST', '/sessions');
+    state.sessionId = data.session_id;
+    localStorage.setItem('onboarding_session_id', state.sessionId);
+    document.getElementById('setup-session-id').textContent = state.sessionId;
+    hideLoading();
+    showView('setup');
+    showToast('New session created!');
+  } catch (e) {
+    hideLoading();
+    showToast('Failed to create session: ' + e.message, 'error');
+  }
+}
+
+function showResumeSessionModal() {
+  document.getElementById('resume-modal').classList.remove('hidden');
+}
+
+async function resumeSession() {
+  const sid = document.getElementById('session-id-input').value.trim();
+  if (!sid) { showToast('Please enter a session ID', 'error'); return; }
+  showLoading('Loading session...', 'Fetching your session data');
+  try {
+    const session = await api('GET', `/sessions/${sid}`);
+    state.sessionId = sid;
+    localStorage.setItem('onboarding_session_id', sid);
+    document.getElementById('resume-modal').classList.add('hidden');
+    await restoreSessionState(session);
+    hideLoading();
+  } catch (e) {
+    hideLoading();
+    showToast('Session not found: ' + e.message, 'error');
+  }
+}
+
+async function restoreSessionState(session) {
+  state.resumeData = session.resume_data;
+  state.jdData = session.jd_data;
+  state.skillGaps = session.skill_gaps;
+  state.proficiencyScores = session.proficiency_scores;
+  state.pathway = session.pathway;
+  state.questions = session.questionnaire_questions || [];
+  state.questionnaireState = session.questionnaire_state || { answers: {}, currentIndex: 0, completed: false };
+  state.correctCount = Object.entries(state.questionnaireState.answers || {}).filter(([qid, ans]) => {
+    const q = state.questions.find(q => String(q.id) === qid);
+    return q && q.correct_answer === ans;
+  }).length;
+
+  const status = session.status;
+  if (status === 'pathway' || session.pathway) {
+    renderPathway();
+    showView('pathway');
+  } else if (status === 'scored' || session.proficiency_scores) {
+    renderProficiencyResults(session.proficiency_scores);
+    showView('results');
+  } else if (status === 'questionnaire' && state.questions.length > 0) {
+    startQuestionnaireView();
+    showView('questionnaire');
+  } else if (status === 'analyzed' || session.skill_gaps) {
+    renderAnalysis(session.skill_gaps, session.candidate_name);
+    showView('analysis');
+  } else {
+    document.getElementById('setup-session-id').textContent = state.sessionId;
+    showView('setup');
+  }
+}
+
+function copySessionId() {
+  navigator.clipboard.writeText(state.sessionId).then(() => showToast('Session ID copied!'));
+}
+
+// On page load, check localStorage for existing session
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('onboarding_session_id');
+  if (saved) {
+    document.getElementById('session-id-input').value = saved;
+  }
+});
+
+// -----------------------------------------------------------------------
+// FILE UPLOAD (drag & drop)
+// -----------------------------------------------------------------------
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.add('border-indigo-500', 'bg-indigo-50/50');
+}
+function handleDragLeave(e) {
+  document.getElementById('drop-zone').classList.remove('border-indigo-500', 'bg-indigo-50/50');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  handleDragLeave(e);
+  const file = e.dataTransfer.files[0];
+  if (file) uploadResumeFile(file);
+}
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) uploadResumeFile(file);
+}
+
+async function uploadResumeFile(file) {
+  showLoading('Parsing resume...', 'Claude is extracting skills and experience');
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const res = await fetch(`/api/sessions/${state.sessionId}/resume/file`, { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Upload failed');
+    state.resumeData = data.resume_data;
+    hideLoading();
+    const status = document.getElementById('resume-status');
+    status.innerHTML = `<i class="fa fa-circle-check text-green-500 mr-1"></i><span class="text-green-600 font-medium">Parsed: ${data.candidate_name || 'Resume uploaded'} • ${data.resume_data?.skills?.length || 0} skills extracted</span>`;
+    status.classList.remove('hidden');
+    showToast('Resume parsed successfully!');
+  } catch (e) {
+    hideLoading();
+    showToast('Failed to parse resume: ' + e.message, 'error');
+  }
+}
+
+// -----------------------------------------------------------------------
+// ANALYSIS FLOW
+// -----------------------------------------------------------------------
+async function runAnalysis() {
+  if (!state.sessionId) { showToast('Please create a session first', 'error'); return; }
+
+  // Upload resume text if provided
+  const resumeText = document.getElementById('resume-text').value.trim();
+  const jdText = document.getElementById('jd-text').value.trim();
+
+  if (!jdText) { showToast('Please enter a job description', 'error'); return; }
+  if (!resumeText && !state.resumeData) { showToast('Please provide a resume (upload file or paste text)', 'error'); return; }
+
+  const btn = document.getElementById('analyze-btn');
+  btn.disabled = true;
+
+  try {
+    // Step 1: Upload resume text if not already uploaded
+    if (resumeText && !state.resumeData) {
+      showLoading('Parsing resume...', 'Claude is extracting skills and experience from your resume');
+      const resumeResult = await api('POST', `/sessions/${state.sessionId}/resume/text`, { text: resumeText });
+      state.resumeData = resumeResult.resume_data;
+    } else if (resumeText) {
+      showLoading('Re-parsing resume...', 'Updating resume data');
+      const resumeResult = await api('POST', `/sessions/${state.sessionId}/resume/text`, { text: resumeText });
+      state.resumeData = resumeResult.resume_data;
+    }
+
+    // Step 2: Upload JD
+    showLoading('Parsing job description...', 'Claude is extracting role requirements');
+    const jdResult = await api('POST', `/sessions/${state.sessionId}/jd`, { text: jdText });
+    state.jdData = jdResult.jd_data;
+
+    // Step 3: Analyze gap
+    showLoading('Analyzing skill gaps...', 'Claude is comparing your profile to the role requirements');
+    const gapResult = await api('POST', `/sessions/${state.sessionId}/analyze`);
+    state.skillGaps = gapResult.skill_gaps;
+
+    hideLoading();
+    renderAnalysis(state.skillGaps, state.resumeData?.candidate_name);
+    showView('analysis');
+    showToast('Analysis complete!');
+  } catch (e) {
+    hideLoading();
+    showToast('Analysis failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderAnalysis(gaps, candidateName) {
+  if (!gaps) return;
+
+  // Fit score
+  const score = gaps.overall_fit_score || 0;
+  document.getElementById('fit-score-text').textContent = score + '%';
+  const circumference = 327;
+  const offset = circumference - (score / 100) * circumference;
+  setTimeout(() => {
+    document.getElementById('fit-score-circle').style.strokeDashoffset = offset;
+    const color = score >= 70 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
+    document.getElementById('fit-score-circle').setAttribute('stroke', color);
+  }, 100);
+
+  // Candidate name
+  if (candidateName) document.getElementById('candidate-name-badge').textContent = candidateName;
+
+  // Summary
+  document.getElementById('analysis-summary').textContent = gaps.summary || '';
+
+  // Strong matches
+  const matchesEl = document.getElementById('strong-matches');
+  matchesEl.innerHTML = '';
+  (gaps.strong_matches || []).forEach(skill => {
+    matchesEl.innerHTML += `<span class="skill-chip bg-green-100 text-green-700">${skill}</span>`;
+  });
+
+  // Skill gaps table
+  const tbody = document.getElementById('skill-gaps-table');
+  tbody.innerHTML = '';
+  (gaps.skill_gaps || []).forEach(gap => {
+    const severityClass = `severity-${gap.gap_severity?.toLowerCase() || 'medium'}`;
+    tbody.innerHTML += `
+      <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+        <td class="p-3 font-bold text-gray-900">${gap.skill}</td>
+        <td class="p-3"><span class="skill-chip bg-gray-100 text-gray-600">${gap.candidate_level || 'none'}</span></td>
+        <td class="p-3"><span class="skill-chip bg-indigo-100 text-indigo-700">${gap.required_level}</span></td>
+        <td class="p-3"><span class="skill-chip border ${severityClass}">${gap.gap_severity}</span></td>
+        <td class="p-3 text-gray-500 text-xs max-w-xs">${gap.reason || ''}</td>
+      </tr>
+    `;
+  });
+
+  // Missing skills
+  const missingSkills = gaps.missing_skills || [];
+  if (missingSkills.length > 0) {
+    document.getElementById('missing-skills-section').classList.remove('hidden');
+    const chipsEl = document.getElementById('missing-skills-chips');
+    chipsEl.innerHTML = missingSkills.map(s => `<span class="skill-chip bg-red-100 text-red-700">${s}</span>`).join('');
+  }
+}
+
+// -----------------------------------------------------------------------
+// QUESTIONNAIRE
+// -----------------------------------------------------------------------
+async function startQuestionnaire() {
+  showLoading('Generating questionnaire...', 'Claude is creating 35-40 adaptive questions for your skill gaps (30s)');
+  try {
+    const data = await api('POST', `/sessions/${state.sessionId}/questionnaire/generate`);
+    state.questions = data.questions;
+    state.questionnaireState = { answers: {}, currentIndex: 0, completed: false };
+    state.selectedAnswer = null;
+    state.correctCount = 0;
+    hideLoading();
+    startQuestionnaireView();
+    showView('questionnaire');
+    showToast(`${data.total_questions} questions generated!`);
+  } catch (e) {
+    hideLoading();
+    showToast('Failed to generate questionnaire: ' + e.message, 'error');
+  }
+}
+
+function startQuestionnaireView() {
+  if (state.questions.length === 0) return;
+  // Find first unanswered
+  const answered = Object.keys(state.questionnaireState.answers || {});
+  let idx = 0;
+  for (let i = 0; i < state.questions.length; i++) {
+    if (!answered.includes(String(state.questions[i].id))) { idx = i; break; }
+  }
+  state.questionnaireState.currentIndex = idx;
+  renderQuestion(idx);
+  updateQuestionnaireProgress();
+}
+
+function renderQuestion(idx) {
+  const q = state.questions[idx];
+  if (!q) return;
+
+  state.selectedAnswer = state.questionnaireState.answers[String(q.id)] || null;
+
+  // Badges
+  document.getElementById('q-skill-badge').textContent = q.skill;
+  const levelEl = document.getElementById('q-level-badge');
+  const levelColors = { basic: 'bg-green-100 text-green-700', intermediate: 'bg-yellow-100 text-yellow-700', advanced: 'bg-red-100 text-red-700' };
+  levelEl.className = `px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${levelColors[q.level] || 'bg-gray-100 text-gray-600'}`;
+  levelEl.textContent = q.level;
+  document.getElementById('q-number-badge').textContent = `Q${q.id} of ${state.questions.length}`;
+  document.getElementById('q-question-text').textContent = q.question;
+  document.getElementById('q-skill-text').textContent = `Skill: ${q.skill}`;
+
+  // Options
+  const optionsEl = document.getElementById('q-options');
+  optionsEl.innerHTML = '';
+  const isAnswered = !!state.questionnaireState.answers[String(q.id)];
+
+  ['A', 'B', 'C', 'D'].forEach(letter => {
+    const text = q.options[letter];
+    let btnClass = 'option-btn w-full text-left p-4 rounded-xl flex items-start gap-3 cursor-pointer ';
+    if (isAnswered) {
+      if (letter === q.correct_answer) btnClass += 'correct';
+      else if (letter === state.questionnaireState.answers[String(q.id)]) btnClass += 'incorrect';
+      else btnClass += 'opacity-50';
+    } else if (state.selectedAnswer === letter) {
+      btnClass += 'selected';
+    }
+
+    optionsEl.innerHTML += `
+      <button class="${btnClass}" onclick="selectOption('${letter}')" ${isAnswered ? 'disabled' : ''}>
+        <span class="w-8 h-8 rounded-lg border-2 border-current flex items-center justify-center font-bold text-sm shrink-0 ${letter === q.correct_answer && isAnswered ? 'bg-green-500 border-green-500 text-white' : ''}">${letter}</span>
+        <span class="text-gray-800 text-sm">${text}</span>
+      </button>`;
+  });
+
+  // Feedback
+  const feedbackEl = document.getElementById('q-feedback');
+  if (isAnswered) {
+    const userAns = state.questionnaireState.answers[String(q.id)];
+    const isCorrect = userAns === q.correct_answer;
+    feedbackEl.className = `rounded-xl p-4 mb-6 transition-all ${isCorrect ? 'bg-green-50 border-l-4 border-green-500' : 'bg-red-50 border-l-4 border-red-500'}`;
+    document.getElementById('q-feedback-icon').className = isCorrect ? 'fa fa-circle-check text-green-600 text-xl mt-0.5' : 'fa fa-circle-xmark text-red-600 text-xl mt-0.5';
+    document.getElementById('q-feedback-result').textContent = isCorrect ? 'Correct!' : `Incorrect — correct answer is ${q.correct_answer}`;
+    document.getElementById('q-feedback-result').className = `font-bold mb-1 ${isCorrect ? 'text-green-700' : 'text-red-700'}`;
+    document.getElementById('q-feedback-explanation').textContent = q.explanation || '';
+    feedbackEl.classList.remove('hidden');
+  } else {
+    feedbackEl.classList.add('hidden');
+  }
+
+  // Buttons
+  const submitBtn = document.getElementById('q-submit-btn');
+  const finishBtn = document.getElementById('q-finish-btn');
+  const allAnswered = state.questions.every(q => state.questionnaireState.answers[String(q.id)]);
+
+  if (allAnswered) {
+    submitBtn.classList.add('hidden');
+    finishBtn.classList.remove('hidden');
+  } else {
+    submitBtn.classList.remove('hidden');
+    submitBtn.disabled = isAnswered || !state.selectedAnswer;
+    finishBtn.classList.add('hidden');
+  }
+}
+
+function selectOption(letter) {
+  const q = state.questions[state.questionnaireState.currentIndex];
+  if (!q || state.questionnaireState.answers[String(q.id)]) return;
+  state.selectedAnswer = letter;
+
+  document.querySelectorAll('#q-options button').forEach(btn => {
+    btn.classList.remove('selected');
+    const ltr = btn.querySelector('span').textContent;
+    if (ltr === letter) btn.classList.add('selected');
+  });
+  document.getElementById('q-submit-btn').disabled = false;
+}
+
+async function submitAnswer() {
+  const q = state.questions[state.questionnaireState.currentIndex];
+  if (!q || !state.selectedAnswer) return;
+
+  const submitBtn = document.getElementById('q-submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i>Checking...';
+
+  try {
+    const data = await api('POST', `/sessions/${state.sessionId}/questionnaire/answer`, {
+      question_id: q.id,
+      answer: state.selectedAnswer
+    });
+
+    // Update local state
+    state.questionnaireState.answers[String(q.id)] = state.selectedAnswer;
+    if (data.is_correct) state.correctCount++;
+
+    // Re-render current question with feedback
+    renderQuestion(state.questionnaireState.currentIndex);
+    updateQuestionnaireProgress();
+
+    // Auto-advance after 2.5 seconds if there's a next question
+    if (data.next_question && !data.progress.completed) {
+      setTimeout(() => {
+        const nextIdx = state.questions.findIndex(q => q.id === data.next_question.id);
+        if (nextIdx >= 0) {
+          state.questionnaireState.currentIndex = nextIdx;
+          state.selectedAnswer = null;
+          renderQuestion(nextIdx);
+        }
+      }, 2500);
+    } else if (data.progress.completed) {
+      document.getElementById('q-finish-btn').classList.remove('hidden');
+      submitBtn.classList.add('hidden');
+    }
+  } catch (e) {
+    showToast('Failed to submit answer: ' + e.message, 'error');
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = 'Submit Answer';
+  }
+}
+
+function updateQuestionnaireProgress() {
+  const answered = Object.keys(state.questionnaireState.answers).length;
+  const total = state.questions.length;
+  const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
+  document.getElementById('q-progress-text').textContent = `${answered} / ${total}`;
+  document.getElementById('q-progress-bar').style.width = pct + '%';
+  document.getElementById('q-score-text').textContent = `Score: ${state.correctCount} correct (${answered > 0 ? Math.round((state.correctCount/answered)*100) : 0}%)`;
+}
+
+async function finishQuestionnaire() {
+  showLoading('Calculating scores...', 'Analyzing your performance across all skills');
+  try {
+    const data = await api('POST', `/sessions/${state.sessionId}/questionnaire/finish`);
+    state.proficiencyScores = data.proficiency_scores;
+    hideLoading();
+    renderProficiencyResults(data.proficiency_scores);
+    showView('results');
+    showToast('Assessment complete!');
+  } catch (e) {
+    hideLoading();
+    showToast('Failed to calculate scores: ' + e.message, 'error');
+  }
+}
+
+// -----------------------------------------------------------------------
+// PROFICIENCY RESULTS
+// -----------------------------------------------------------------------
+function renderProficiencyResults(scores) {
+  if (!scores) return;
+  const grid = document.getElementById('proficiency-grid');
+  grid.innerHTML = '';
+
+  const levelColors = {
+    beginner: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600', bar: 'bg-red-400', icon: 'fa fa-seedling' },
+    basic:    { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-600', bar: 'bg-orange-400', icon: 'fa fa-leaf' },
+    intermediate: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-600', bar: 'bg-yellow-400', icon: 'fa fa-tree' },
+    advanced:  { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-600', bar: 'bg-green-500', icon: 'fa fa-star' },
+  };
+
+  Object.entries(scores).forEach(([skill, data]) => {
+    const colors = levelColors[data.level] || levelColors.basic;
+    grid.innerHTML += `
+      <div class="${colors.bg} border ${colors.border} rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-gray-900">${skill}</h3>
+          <span class="${colors.text} font-black text-2xl">${data.score}%</span>
+        </div>
+        <div class="flex items-center gap-2 mb-3">
+          <i class="${colors.icon} ${colors.text}"></i>
+          <span class="${colors.text} font-semibold capitalize text-sm">${data.level}</span>
+        </div>
+        <div class="bg-gray-200 rounded-full h-2 mb-3">
+          <div class="${colors.bar} h-2 rounded-full transition-all duration-1000" style="width:0%" data-target="${data.score}"></div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-xs text-gray-500">
+          <div class="text-center"><div class="font-bold text-gray-700">${data.details?.basic_accuracy ?? 0}%</div><div>Basic</div></div>
+          <div class="text-center"><div class="font-bold text-gray-700">${data.details?.intermediate_accuracy ?? 0}%</div><div>Inter.</div></div>
+          <div class="text-center"><div class="font-bold text-gray-700">${data.details?.advanced_accuracy ?? 0}%</div><div>Adv.</div></div>
+        </div>
+      </div>`;
+  });
+
+  // Animate bars
+  setTimeout(() => {
+    document.querySelectorAll('[data-target]').forEach(el => {
+      el.style.width = el.dataset.target + '%';
+    });
+  }, 200);
+}
+
+// -----------------------------------------------------------------------
+// LEARNING PATHWAY
+// -----------------------------------------------------------------------
+async function generatePathway() {
+  showLoading('Generating personalized pathway...', 'Claude is designing your week-by-week learning plan (30s)');
+  try {
+    const data = await api('POST', `/sessions/${state.sessionId}/pathway/generate`);
+    state.pathway = data.pathway;
+    const pathwayData = await api('GET', `/sessions/${state.sessionId}/pathway`);
+    state.skillProgress = pathwayData.skill_progress || {};
+    hideLoading();
+    renderPathway();
+    showView('pathway');
+    showToast('Learning pathway generated!');
+  } catch (e) {
+    hideLoading();
+    showToast('Failed to generate pathway: ' + e.message, 'error');
+  }
+}
+
+async function renderPathway() {
+  const pathway = state.pathway;
+  if (!pathway) return;
+
+  // Header
+  document.getElementById('pathway-overview').textContent = pathway.overview || '';
+  document.getElementById('total-weeks').textContent = pathway.total_estimated_weeks || '?';
+
+  // Fetch fresh progress
+  try {
+    const pathwayData = await api('GET', `/sessions/${state.sessionId}/pathway`);
+    state.skillProgress = pathwayData.skill_progress || {};
+  } catch (e) { /* use cached */ }
+
+  const skills = pathway.skills || [];
+  document.getElementById('skills-total').textContent = skills.length;
+  document.getElementById('skills-completed').textContent = Object.values(state.skillProgress).filter(p => p.passed).length;
+  document.getElementById('skills-in-progress').textContent = Object.values(state.skillProgress).filter(p => p.status === 'learning' || p.status === 'testing').length;
+
+  const container = document.getElementById('pathway-skills');
+  container.innerHTML = '';
+
+  const priorityColors = {
+    critical: 'bg-red-100 text-red-700',
+    high: 'bg-orange-100 text-orange-700',
+    medium: 'bg-yellow-100 text-yellow-700',
+    low: 'bg-green-100 text-green-700'
+  };
+
+  const resourceIcons = {
+    course: 'fa fa-graduation-cap text-indigo-600',
+    book: 'fa fa-book text-purple-600',
+    practice: 'fa fa-laptop-code text-green-600',
+    video: 'fa fa-play-circle text-red-600',
+    docs: 'fa fa-file-code text-blue-600',
+    tutorial: 'fa fa-chalkboard-teacher text-orange-600',
+  };
+
+  skills.forEach((skill, idx) => {
+    const progress = state.skillProgress[skill.skill_name] || { status: 'not_started', passed: false, score: 0, attempts: 0 };
+    const isPassed = progress.passed;
+    const isLearning = progress.status === 'learning';
+    const prioClass = priorityColors[skill.priority?.toLowerCase()] || priorityColors.medium;
+
+    // Status badge
+    let statusBadge = '';
+    if (isPassed) statusBadge = '<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold"><i class="fa fa-check mr-1"></i>Completed</span>';
+    else if (progress.status === 'testing') statusBadge = '<span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold"><i class="fa fa-spinner fa-spin mr-1"></i>Testing</span>';
+    else if (isLearning) statusBadge = '<span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold"><i class="fa fa-book-open mr-1"></i>Learning</span>';
+    else if (progress.status === 'needs_revision') statusBadge = '<span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold"><i class="fa fa-rotate-right mr-1"></i>Needs Revision</span>';
+    else statusBadge = '<span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold"><i class="fa fa-clock mr-1"></i>Not Started</span>';
+
+    // Resources
+    const resourcesHtml = (skill.resources || []).map(r => {
+      const icon = resourceIcons[r.type?.toLowerCase()] || 'fa fa-link text-gray-500';
+      return `<a href="${r.url || '#'}" target="_blank" class="flex items-start gap-3 p-3 bg-gray-50 rounded-xl hover:bg-indigo-50 transition-all group">
+        <i class="${icon} text-lg mt-0.5 group-hover:scale-110 transition-transform"></i>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-900 text-sm group-hover:text-indigo-700 truncate">${r.title}</p>
+          <p class="text-gray-500 text-xs">${r.provider || ''} ${r.estimated_hours ? `• ~${r.estimated_hours}h` : ''}</p>
+          <p class="text-gray-400 text-xs mt-0.5 line-clamp-1">${r.description || ''}</p>
+        </div>
+        <i class="fa fa-arrow-up-right-from-square text-gray-300 group-hover:text-indigo-400 text-xs mt-1"></i>
+      </a>`;
+    }).join('');
+
+    // Learning steps
+    const stepsHtml = (skill.learning_steps || []).map(step => `
+      <div class="flex gap-4">
+        <div class="flex flex-col items-center">
+          <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold shrink-0">W${step.week}</div>
+          <div class="w-0.5 bg-gray-200 flex-1 mt-1"></div>
+        </div>
+        <div class="pb-4">
+          <p class="font-bold text-gray-900 text-sm">${step.focus}</p>
+          <ul class="mt-1 space-y-0.5">
+            ${(step.tasks || []).map(t => `<li class="text-gray-500 text-xs flex items-start gap-1"><i class="fa fa-circle-dot text-indigo-300 mt-0.5"></i>${t}</li>`).join('')}
+          </ul>
+          ${step.milestone ? `<p class="mt-2 text-indigo-600 text-xs font-medium"><i class="fa fa-flag mr-1"></i>${step.milestone}</p>` : ''}
+        </div>
+      </div>`).join('');
+
+    container.innerHTML += `
+      <div class="card overflow-hidden ${isPassed ? 'ring-2 ring-green-400' : ''}">
+        <!-- Card Header -->
+        <div class="p-6 border-b border-gray-100">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-3 mb-2">
+                <span class="text-gray-400 text-sm font-bold">#${idx + 1}</span>
+                <h3 class="text-xl font-black text-gray-900">${skill.skill_name}</h3>
+                <span class="skill-chip ${prioClass}">${skill.priority}</span>
+              </div>
+              <div class="flex items-center gap-4 text-sm text-gray-500">
+                <span><i class="fa fa-arrow-right text-orange-400 mr-1"></i>${skill.current_level || '?'} → <span class="text-indigo-600 font-semibold">${skill.target_level}</span></span>
+                <span><i class="fa fa-clock text-indigo-400 mr-1"></i>${skill.estimated_weeks} weeks</span>
+                ${statusBadge}
+              </div>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+              ${isPassed ? '' : `<button onclick="markLearning('${skill.skill_name}', '${isLearning ? 'not_started' : 'learning'}')" class="border-2 border-indigo-200 text-indigo-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-50 transition-all">
+                <i class="fa ${isLearning ? 'fa-pause' : 'fa-play'} mr-1"></i>${isLearning ? 'Pause' : 'Start Learning'}
+              </button>`}
+              <button onclick="openSkillTest('${skill.skill_name}', '${skill.target_level}')" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all ${isPassed ? 'opacity-60' : ''}">
+                <i class="fa fa-${isPassed ? 'check' : 'flask'} mr-1"></i>${isPassed ? 'Passed ✓' : 'Take Verification Test'}
+              </button>
+            </div>
+          </div>
+          ${progress.attempts > 0 ? `<p class="text-xs text-gray-400 mt-2"><i class="fa fa-history mr-1"></i>Attempts: ${progress.attempts} | Last score: ${progress.score}%</p>` : ''}
+        </div>
+
+        <!-- Tabs / Details (collapsible) -->
+        <div class="p-6">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Resources -->
+            <div>
+              <h4 class="font-bold text-gray-800 mb-3 text-sm"><i class="fa fa-book-open text-indigo-500 mr-1"></i>Learning Resources</h4>
+              <div class="space-y-2">${resourcesHtml}</div>
+            </div>
+            <!-- Timeline -->
+            <div>
+              <h4 class="font-bold text-gray-800 mb-3 text-sm"><i class="fa fa-calendar-days text-purple-500 mr-1"></i>Week-by-Week Plan</h4>
+              <div>${stepsHtml}</div>
+              ${skill.practice_project ? `<div class="mt-3 bg-purple-50 rounded-xl p-3 border border-purple-200">
+                <p class="text-purple-700 text-xs font-bold mb-1"><i class="fa fa-code mr-1"></i>Practice Project:</p>
+                <p class="text-purple-600 text-xs">${skill.practice_project}</p>
+              </div>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>`;
+  });
+}
+
+async function markLearning(skillName, newStatus) {
+  try {
+    await api('POST', `/sessions/${state.sessionId}/skills/${encodeURIComponent(skillName)}/status`, { status: newStatus });
+    state.skillProgress[skillName] = { ...(state.skillProgress[skillName] || {}), status: newStatus };
+    renderPathway();
+    showToast(`${skillName} marked as ${newStatus.replace('_', ' ')}`);
+  } catch (e) {
+    showToast('Failed to update status: ' + e.message, 'error');
+  }
+}
+
+// -----------------------------------------------------------------------
+// SKILL TEST MODAL
+// -----------------------------------------------------------------------
+async function openSkillTest(skillName, targetLevel) {
+  state.testSkillName = skillName;
+  state.testTargetLevel = targetLevel;
+  state.testAnswers = {};
+  state.testCurrentIndex = 0;
+
+  // Show modal
+  document.getElementById('skill-test-modal').classList.remove('hidden');
+  document.getElementById('test-skill-name').textContent = `Verification Test: ${skillName}`;
+  document.getElementById('test-target-level').textContent = `Target Level: ${targetLevel} • 8 Questions • Pass: 75%`;
+  document.getElementById('test-question-view').classList.remove('hidden');
+  document.getElementById('test-results-view').classList.add('hidden');
+
+  showLoading('Generating test...', `Claude is creating 8 ${targetLevel}-level questions for ${skillName}`);
+  try {
+    const data = await api('POST', `/sessions/${state.sessionId}/skills/${encodeURIComponent(skillName)}/test/generate`);
+    state.testQuestions = data.questions;
+    state.testAnswers = {};
+    hideLoading();
+    renderTestQuestion(0);
+    showToast('Test ready!');
+  } catch (e) {
+    hideLoading();
+    closeSkillTest();
+    showToast('Failed to generate test: ' + e.message, 'error');
+  }
+}
+
+function closeSkillTest() {
+  document.getElementById('skill-test-modal').classList.add('hidden');
+  renderPathway(); // Refresh pathway view
+}
+
+function renderTestQuestion(idx) {
+  const q = state.testQuestions[idx];
+  if (!q) return;
+  state.testCurrentIndex = idx;
+
+  document.getElementById('test-q-num-badge').textContent = `Question ${idx + 1} of ${state.testQuestions.length}`;
+  document.getElementById('test-concept-badge').textContent = q.concept_tested || '';
+  document.getElementById('test-question-text').textContent = q.question;
+  document.getElementById('test-q-current').textContent = idx + 1;
+  document.getElementById('test-q-total').textContent = state.testQuestions.length;
+  document.getElementById('test-q-answered').textContent = `${Object.keys(state.testAnswers).length} answered`;
+
+  // Progress bar
+  const progress = (Object.keys(state.testAnswers).length / state.testQuestions.length) * 100;
+  document.getElementById('test-progress-bar').style.width = progress + '%';
+
+  // Options
+  const optionsEl = document.getElementById('test-options');
+  optionsEl.innerHTML = '';
+  const selected = state.testAnswers[String(q.id)];
+
+  ['A', 'B', 'C', 'D'].forEach(letter => {
+    const isSelected = selected === letter;
+    optionsEl.innerHTML += `
+      <button class="option-btn w-full text-left p-4 rounded-xl flex items-start gap-3 ${isSelected ? 'selected' : ''}" onclick="selectTestOption('${letter}')">
+        <span class="w-8 h-8 rounded-lg border-2 border-current flex items-center justify-center font-bold text-sm shrink-0 ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'text-gray-600'}">${letter}</span>
+        <span class="text-gray-800 text-sm">${q.options[letter]}</span>
+      </button>`;
+  });
+
+  // Navigation buttons
+  const prevBtn = document.getElementById('test-prev-btn');
+  const nextBtn = document.getElementById('test-next-btn');
+  const submitBtn = document.getElementById('test-submit-all-btn');
+
+  prevBtn.disabled = idx === 0;
+
+  const isLast = idx === state.testQuestions.length - 1;
+  const allAnswered = state.testQuestions.every(q => state.testAnswers[String(q.id)]);
+
+  if (isLast) {
+    nextBtn.classList.add('hidden');
+    submitBtn.classList.remove('hidden');
+    submitBtn.disabled = !allAnswered;
+  } else {
+    nextBtn.classList.remove('hidden');
+    submitBtn.classList.add('hidden');
+  }
+}
+
+function selectTestOption(letter) {
+  const q = state.testQuestions[state.testCurrentIndex];
+  if (!q) return;
+  state.testAnswers[String(q.id)] = letter;
+
+  document.querySelectorAll('#test-options button').forEach(btn => {
+    btn.classList.remove('selected');
+    const ltr = btn.querySelector('span').textContent;
+    const span = btn.querySelector('span:first-child');
+    if (ltr === letter) {
+      btn.classList.add('selected');
+      span.className = 'w-8 h-8 rounded-lg border-2 flex items-center justify-center font-bold text-sm shrink-0 bg-indigo-600 border-indigo-600 text-white';
+    } else {
+      span.className = 'w-8 h-8 rounded-lg border-2 border-current flex items-center justify-center font-bold text-sm shrink-0 text-gray-600';
+    }
+  });
+
+  // Update progress
+  const answered = Object.keys(state.testAnswers).length;
+  document.getElementById('test-q-answered').textContent = `${answered} answered`;
+  document.getElementById('test-progress-bar').style.width = `${(answered / state.testQuestions.length) * 100}%`;
+
+  const isLast = state.testCurrentIndex === state.testQuestions.length - 1;
+  if (isLast) {
+    const allAnswered = state.testQuestions.every(q => state.testAnswers[String(q.id)]);
+    document.getElementById('test-submit-all-btn').disabled = !allAnswered;
+  }
+
+  // Auto advance after 0.8s
+  if (state.testCurrentIndex < state.testQuestions.length - 1) {
+    setTimeout(() => testNavQuestion(1), 800);
+  }
+}
+
+function testNavQuestion(dir) {
+  const newIdx = state.testCurrentIndex + dir;
+  if (newIdx >= 0 && newIdx < state.testQuestions.length) {
+    renderTestQuestion(newIdx);
+  }
+}
+
+async function submitSkillTest() {
+  const allAnswered = state.testQuestions.every(q => state.testAnswers[String(q.id)]);
+  if (!allAnswered) { showToast('Please answer all questions first', 'error'); return; }
+
+  showLoading('Evaluating test...', 'Claude is grading your answers and generating feedback');
+  try {
+    const data = await api('POST', `/sessions/${state.sessionId}/skills/${encodeURIComponent(state.testSkillName)}/test/submit`, {
+      answers: state.testAnswers
+    });
+    hideLoading();
+    showTestResults(data.result);
+  } catch (e) {
+    hideLoading();
+    showToast('Failed to submit test: ' + e.message, 'error');
+  }
+}
+
+function showTestResults(result) {
+  document.getElementById('test-question-view').classList.add('hidden');
+  document.getElementById('test-results-view').classList.remove('hidden');
+  document.getElementById('test-progress-section').classList.add('hidden');
+
+  // Pass/Fail banner
+  const passBanner = document.getElementById('test-pass-banner');
+  const failBanner = document.getElementById('test-fail-banner');
+  passBanner.classList.add('hidden');
+  failBanner.classList.add('hidden');
+
+  if (result.passed) {
+    passBanner.classList.remove('hidden');
+    document.getElementById('test-retry-btn').classList.add('hidden');
+  } else {
+    failBanner.classList.remove('hidden');
+    document.getElementById('test-retry-btn').classList.remove('hidden');
+  }
+
+  // Score
+  const scoreDisplay = document.getElementById('test-score-display');
+  scoreDisplay.textContent = result.score + '%';
+  scoreDisplay.className = `text-5xl font-black ${result.passed ? 'text-green-600' : 'text-red-600'}`;
+
+  const scoreBar = document.getElementById('test-score-bar');
+  scoreBar.className = `h-4 rounded-full transition-all duration-1000 ${result.passed ? 'bg-green-500' : 'bg-red-500'}`;
+  setTimeout(() => scoreBar.style.width = result.score + '%', 100);
+
+  // Feedback
+  document.getElementById('test-feedback-text').textContent = result.feedback || '';
+
+  // Wrong answers
+  const wrongSection = document.getElementById('test-wrong-section');
+  const wrongList = document.getElementById('test-wrong-list');
+  wrongList.innerHTML = '';
+
+  if (result.wrong_answers && result.wrong_answers.length > 0) {
+    wrongSection.classList.remove('hidden');
+    result.wrong_answers.forEach(wa => {
+      wrongList.innerHTML += `
+        <div class="bg-red-50 border border-red-100 rounded-xl p-4">
+          <p class="font-semibold text-gray-900 text-sm mb-2">${wa.question}</p>
+          <div class="space-y-1 text-xs">
+            <p class="text-red-600"><i class="fa fa-xmark mr-1"></i>Your answer: ${wa.your_answer}</p>
+            <p class="text-green-600"><i class="fa fa-check mr-1"></i>Correct: ${wa.correct_answer}</p>
+            <p class="text-gray-500 mt-1">${wa.explanation}</p>
+          </div>
+        </div>`;
+    });
+  } else {
+    wrongSection.classList.add('hidden');
+  }
+}
+
+async function retrySkillTest() {
+  await openSkillTest(state.testSkillName, state.testTargetLevel);
+}
+</script>
+</body>
+</html>
