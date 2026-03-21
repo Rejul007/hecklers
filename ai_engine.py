@@ -5,7 +5,6 @@ Uses Ollama (localhost:11434) serving Qwen2.5-7B via an OpenAI-compatible API.
 No API key required — runs entirely offline.
 
 Key design decisions:
-- Response structure is identical to Groq: response.choices[0].message.content
 - JSON is parsed with markdown fence stripping for robustness
 """
 
@@ -39,7 +38,7 @@ def _get_client() -> OpenAI:
 # ---------------------------------------------------------------------------
 
 def _get_text(response) -> str:
-    """Extract text content from a Groq chat completion response."""
+    """Extract text content from an Ollama chat completion response."""
     return response.choices[0].message.content or ""
 
 
