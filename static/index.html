@@ -429,9 +429,15 @@
           <h2 class="text-2xl font-black text-white"><i class="fa fa-road mr-2"></i>Your Learning Pathway</h2>
           <p id="pathway-overview" class="text-indigo-200 mt-1 text-sm max-w-2xl"></p>
         </div>
-        <div class="glass rounded-xl p-4 text-center min-w-28">
-          <div id="total-weeks" class="text-3xl font-black text-white"></div>
-          <div class="text-indigo-300 text-xs font-medium">weeks total</div>
+        <div class="flex flex-col items-center gap-3">
+          <div class="glass rounded-xl p-4 text-center min-w-28">
+            <div id="total-weeks" class="text-3xl font-black text-white"></div>
+            <div class="text-indigo-300 text-xs font-medium">weeks total</div>
+          </div>
+          <button onclick="confirmNewAssessment()"
+            class="glass border border-white/30 text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-white/20 transition-all w-full text-center">
+            <i class="fa fa-rotate-right mr-1"></i> New Assessment
+          </button>
         </div>
       </div>
     </div>
@@ -703,7 +709,7 @@ async function startNewSession() {
 
 async function resumeSession(sid) {
   if (!sid) return;
-  showLoading('Loading session...', 'Fetching your session data');
+  showLoading('Loading your pathway...', 'Restoring your session');
   try {
     const session = await api('GET', `/sessions/${sid}`);
     state.sessionId = sid;
@@ -711,8 +717,10 @@ async function resumeSession(sid) {
     await restoreSessionState(session);
     hideLoading();
   } catch (e) {
+    // Session not found on backend (e.g. server restarted) — start fresh
     hideLoading();
-    showToast('Session not found: ' + e.message, 'error');
+    console.warn('Could not restore session, starting new one:', e.message);
+    await startNewSession();
   }
 }
 
@@ -880,8 +888,13 @@ auth.onAuthStateChanged(async (user) => {
     document.getElementById('welcome-user-name').textContent = welcomeName;
     document.getElementById('welcome-user-greeting').classList.remove('hidden');
 
-    // Go straight to the onboarding engine
-    await startNewSession();
+    // Restore existing pathway if one exists, otherwise start fresh
+    const existingSessionId = await findExistingPathwaySession(user.uid);
+    if (existingSessionId) {
+      await resumeSession(existingSessionId);
+    } else {
+      await startNewSession();
+    }
   } else {
     document.getElementById('user-topbar').classList.add('hidden');
     document.getElementById('welcome-user-greeting').classList.add('hidden');
@@ -910,16 +923,50 @@ async function saveSessionToFirestore(extraData = {}) {
     ...extraData
   };
 
-  // Remove undefined/null pathway (can be large — store only if present)
   if (state.pathway) data.pathway = state.pathway;
 
+  const userRef = db.collection('users').doc(user.uid);
   try {
-    await db.collection('users').doc(user.uid)
-      .collection('sessions').doc(state.sessionId)
-      .set(data, { merge: true });
+    await userRef.collection('sessions').doc(state.sessionId).set(data, { merge: true });
+
+    // When a pathway is saved, record this session ID directly on the user doc
+    // so we can find it instantly on next login without a complex query
+    if ((extraData.status || data.status) === 'pathway') {
+      await userRef.set({ latest_pathway_session_id: state.sessionId }, { merge: true });
+    }
   } catch (e) {
     console.warn('Firestore save failed:', e.message);
   }
+}
+
+// Read the single field written above — no composite index needed
+async function findExistingPathwaySession(uid) {
+  try {
+    const doc = await db.collection('users').doc(uid).get();
+    return doc.data()?.latest_pathway_session_id || null;
+  } catch (e) {
+    console.warn('Could not read user doc from Firestore:', e.message);
+    return null;
+  }
+}
+
+// Called from the "New Assessment" button on the pathway page
+async function confirmNewAssessment() {
+  if (!confirm('Start a new assessment? Your current learning pathway will be replaced once you complete a new one.')) return;
+  localStorage.removeItem('onboarding_session_id');
+  // Clear the saved pathway pointer so login doesn't restore the old session
+  const user = auth.currentUser;
+  if (user) {
+    try {
+      await db.collection('users').doc(user.uid).set(
+        { latest_pathway_session_id: firebase.firestore.FieldValue.delete() },
+        { merge: true }
+      );
+    } catch (e) {
+      console.warn('Could not clear pathway session pointer:', e.message);
+    }
+  }
+  await startNewSession();
 }
 
 // On page load — handled by onAuthStateChanged above
