@@ -35,8 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-import ai_engine
-import database
+from app import ai_engine, database
 
 load_dotenv()
 

@@ -22,7 +22,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY app.py ai_engine.py database.py ./
+COPY app/ ./app/
 COPY static/ ./static/
 
 # Copy startup script

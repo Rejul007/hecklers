@@ -222,17 +222,19 @@ Level:  ≥85% → advanced
 
 ```
 hecklers/
-├── app.py                # FastAPI application + all API endpoints
-├── ai_engine.py          # Ollama AI integration (all AI functions)
-├── database.py           # SQLite operations (init, CRUD)
+├── app/
+│   ├── __init__.py
+│   ├── main.py           # FastAPI application + all API endpoints
+│   ├── ai_engine.py      # Ollama AI integration (all AI functions)
+│   └── database.py       # SQLite operations (init, CRUD)
+├── static/
+│   ├── index.html        # Employee onboarding SPA
+│   ├── manager.html      # Manager dashboard
+│   └── admin.html        # Admin panel
 ├── requirements.txt      # Python dependencies
 ├── start.sh              # One-command local startup script
 ├── Dockerfile            # Docker image definition
 ├── docker-compose.yml    # Docker Compose with persistent volumes
 ├── .env.example          # Environment variable template
-├── README.md             # This file
-└── static/
-    ├── index.html        # Employee onboarding SPA
-    ├── manager.html      # Manager dashboard
-    └── admin.html        # Admin panel
+└── README.md             # This file
 ```
