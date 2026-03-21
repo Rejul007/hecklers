@@ -1,11 +1,11 @@
 """
-ai_engine.py - Groq AI integration for the AI Onboarding Engine.
+ai_engine.py - Local AI integration for the AI Onboarding Engine.
 
-All functions use the Groq SDK with llama-3.3-70b-versatile.
-Groq uses an OpenAI-compatible chat completions API.
+Uses Ollama (localhost:11434) serving Qwen2.5-7B via an OpenAI-compatible API.
+No API key required — runs entirely offline.
 
 Key design decisions:
-- Groq returns response.choices[0].message.content as plain text
+- Response structure is identical to Groq: response.choices[0].message.content
 - JSON is parsed with markdown fence stripping for robustness
 """
 
@@ -14,23 +14,23 @@ import re
 import os
 from typing import Any, Dict, List, Optional
 
-from groq import Groq
+from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
 
-MODEL = "llama-3.3-70b-versatile"
+MODEL = "qwen2.5:7b"
 
-# Lazy client — initialized on first use so the app can start without the key set
-_client: Optional[Groq] = None
+# Lazy client — initialized on first use
+_client: Optional[OpenAI] = None
 
-def _get_client() -> Groq:
+def _get_client() -> OpenAI:
     global _client
     if _client is None:
-        api_key = os.environ.get("GROQ_API_KEY")
-        if not api_key:
-            raise RuntimeError("GROQ_API_KEY is not set. Add it to your .env file.")
-        _client = Groq(api_key=api_key)
+        _client = OpenAI(
+            base_url="http://localhost:11434/v1",
+            api_key="ollama",  # required by the OpenAI client but ignored by Ollama
+        )
     return _client
 
 
@@ -629,7 +629,7 @@ Rules:
 
     response = _get_client().chat.completions.create(
         model=MODEL,
-        max_tokens=12000,
+        max_tokens=16000,
         messages=[{"role": "user", "content": prompt}]
     )
 
@@ -637,6 +637,9 @@ Rules:
 
     if not isinstance(questions, list):
         raise ValueError("Expected a list of questions")
+
+    if len(questions) < 10:
+        raise ValueError(f"Model returned only {len(questions)} questions; expected 10. Try again.")
 
     # Ensure sequential IDs
     for i, q in enumerate(questions):

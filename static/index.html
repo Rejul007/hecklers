@@ -1584,9 +1584,16 @@ function renderTestQuestion(idx) {
 
   prevBtn.disabled = idx === 0;
   const isLast = idx === state.testQuestions.length - 1;
-  nextBtn.disabled = isLast;
 
-  // Submit always visible; label shows progress
+  if (isLast) {
+    nextBtn.classList.add('hidden');
+    submitBtn.classList.remove('hidden');
+  } else {
+    nextBtn.classList.remove('hidden');
+    submitBtn.classList.add('hidden');
+  }
+
+  // Update submit label with progress
   const answeredCount = Object.keys(state.testAnswers).length;
   const total = state.testQuestions.length;
   const allAnswered = answeredCount === total;
@@ -1624,10 +1631,6 @@ function selectTestOption(letter) {
     ? '<i class="fa fa-paper-plane mr-1"></i> Submit Test'
     : `<i class="fa fa-paper-plane mr-1"></i> Submit Test (${answered}/${total} answered)`;
 
-  // Auto advance after 0.8s (skip on last question)
-  if (state.testCurrentIndex < total - 1) {
-    setTimeout(() => testNavQuestion(1), 800);
-  }
 }
 
 function testNavQuestion(dir) {
