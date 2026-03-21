@@ -17,15 +17,20 @@ Endpoints:
   POST /api/sessions/{id}/skills/{skill}/test/submit   - submit skill test answers
   POST /api/sessions/{id}/skills/{skill}/status        - update skill status
   GET  /api/sessions/{id}/skills/{skill}/progress      - get skill test details
+  POST /api/sessions/{id}/link-user           - link Firebase user to session
+  POST /api/manager/login                     - manager authentication
+  POST /api/manager/logout                    - manager sign out
+  GET  /api/manager/dashboard                 - get all employee data (manager only)
 """
 
 import io
 import os
+import secrets
 from typing import Dict, Optional
 
 import pdfplumber
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -34,6 +39,18 @@ import ai_engine
 import database
 
 load_dotenv()
+
+# ---------------------------------------------------------------------------
+# Admin session store (in-memory — single admin, no DB needed)
+# ---------------------------------------------------------------------------
+_admin_sessions: set = set()
+
+
+def _require_admin(request: Request):
+    token = request.headers.get("X-Admin-Token", "")
+    if not token or token not in _admin_sessions:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
 
 # ---------------------------------------------------------------------------
 # App initialization
@@ -80,6 +97,18 @@ class TestAnswersInput(BaseModel):
 
 class StatusInput(BaseModel):
     status: str
+
+
+class ManagerLoginInput(BaseModel):
+    email: str
+
+
+class AdminLoginInput(BaseModel):
+    password: str
+
+
+class AdminAddManagerInput(BaseModel):
+    email: str
 
 
 # ---------------------------------------------------------------------------
@@ -585,6 +614,95 @@ async def get_skill_progress(session_id: str, skill_name: str):
         raise HTTPException(status_code=404, detail="Skill test record not found")
 
     return skill_test
+
+
+# ---------------------------------------------------------------------------
+# Manager endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/api/manager/login")
+async def manager_login(body: ManagerLoginInput):
+    """Check manager email against whitelist and return a session token."""
+    manager = database.verify_manager_email(body.email)
+    if not manager:
+        raise HTTPException(status_code=401, detail="Not authorized as a manager")
+    token = database.create_manager_session(manager["id"], manager["email"])
+    return {"token": token, "email": manager["email"]}
+
+
+@app.post("/api/manager/logout")
+async def manager_logout(request: Request):
+    token = request.headers.get("X-Manager-Token", "")
+    database.delete_manager_session(token)
+    return {"ok": True}
+
+
+@app.get("/api/manager/dashboard")
+async def manager_dashboard(request: Request):
+    """Return all employee data. Requires valid manager session token."""
+    token = request.headers.get("X-Manager-Token", "")
+    session = database.verify_manager_session(token)
+    if not session:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    employees = database.get_all_employees()
+    return {"employees": employees}
+
+
+@app.post("/api/sessions/{session_id}/link-user")
+async def link_user_to_session(session_id: str, request: Request):
+    """Link a Firebase user's UID and email to a session."""
+    body = await request.json()
+    firebase_uid = body.get("firebase_uid", "")
+    user_email = body.get("user_email", "")
+    if firebase_uid:
+        database.update_session_user(session_id, firebase_uid, user_email)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Admin endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/api/admin/login")
+async def admin_login(body: AdminLoginInput):
+    """Verify the admin password from .env and issue a session token."""
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
+    if not admin_password or body.password != admin_password:
+        raise HTTPException(status_code=401, detail="Invalid admin password")
+    token = secrets.token_hex(32)
+    _admin_sessions.add(token)
+    return {"token": token}
+
+
+@app.post("/api/admin/logout")
+async def admin_logout(request: Request):
+    token = request.headers.get("X-Admin-Token", "")
+    _admin_sessions.discard(token)
+    return {"ok": True}
+
+
+@app.get("/api/admin/managers")
+async def admin_list_managers(request: Request):
+    _require_admin(request)
+    return {"managers": database.list_managers()}
+
+
+@app.post("/api/admin/managers")
+async def admin_add_manager(request: Request, body: AdminAddManagerInput):
+    _require_admin(request)
+    added = database.add_manager(body.email)
+    if not added:
+        raise HTTPException(status_code=409, detail="Manager already exists")
+    return {"ok": True, "email": body.email.lower().strip()}
+
+
+@app.delete("/api/admin/managers/{email}")
+async def admin_remove_manager(email: str, request: Request):
+    _require_admin(request)
+    removed = database.remove_manager(email)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Manager not found")
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------

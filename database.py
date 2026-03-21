@@ -66,6 +66,52 @@ def init_db():
             )
         """)
 
+        # Add firebase_uid and user_email to sessions if not present (migration)
+        try:
+            cursor.execute("ALTER TABLE sessions ADD COLUMN firebase_uid TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE sessions ADD COLUMN user_email TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        # Managers whitelist table — just emails, auth handled by Firebase
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS managers (
+                id TEXT PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        # Migration: drop password_hash column if the table was created with old schema
+        cols = [row[1] for row in cursor.execute("PRAGMA table_info(managers)").fetchall()]
+        if "password_hash" in cols:
+            cursor.execute("ALTER TABLE managers RENAME TO managers_old")
+            cursor.execute("""
+                CREATE TABLE managers (
+                    id TEXT PRIMARY KEY,
+                    email TEXT UNIQUE NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+            """)
+            cursor.execute(
+                "INSERT INTO managers (id, email, created_at) SELECT id, email, created_at FROM managers_old"
+            )
+            cursor.execute("DROP TABLE managers_old")
+
+        # Manager sessions table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS manager_sessions (
+                token TEXT PRIMARY KEY,
+                manager_id TEXT NOT NULL,
+                manager_email TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (manager_id) REFERENCES managers(id)
+            )
+        """)
+
         conn.commit()
         print("Database initialized successfully.")
     finally:
@@ -263,5 +309,191 @@ def get_all_skill_tests(session_id: str) -> list:
             tests.append(test)
 
         return tests
+    finally:
+        conn.close()
+
+
+import secrets
+
+
+def add_manager(email: str) -> bool:
+    """Add a manager email to the whitelist. Returns True if added, False if already exists."""
+    conn = get_connection()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM managers WHERE email = ?", (email.lower().strip(),)
+        ).fetchone()
+        if existing:
+            return False
+        manager_id = str(uuid.uuid4())
+        conn.execute(
+            "INSERT INTO managers (id, email, created_at) VALUES (?, ?, ?)",
+            (manager_id, email.lower().strip(), datetime.utcnow().isoformat())
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def list_managers() -> list:
+    """Return all manager emails in the whitelist."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, email, created_at FROM managers ORDER BY created_at DESC"
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def remove_manager(email: str) -> bool:
+    """Remove a manager from the whitelist. Returns True if removed, False if not found."""
+    conn = get_connection()
+    try:
+        cursor = conn.execute(
+            "DELETE FROM managers WHERE email = ?", (email.lower().strip(),)
+        )
+        if cursor.rowcount > 0:
+            conn.execute(
+                "DELETE FROM manager_sessions WHERE manager_email = ?",
+                (email.lower().strip(),)
+            )
+            conn.commit()
+            return True
+        conn.commit()
+        return False
+    finally:
+        conn.close()
+
+
+def verify_manager_email(email: str) -> Optional[Dict[str, Any]]:
+    """Check if an email is in the manager whitelist. Returns manager dict or None."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM managers WHERE email = ?", (email.lower().strip(),)
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def create_manager_session(manager_id: str, manager_email: str) -> str:
+    """Create a manager session token and return it."""
+    token = secrets.token_hex(32)
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO manager_sessions (token, manager_id, manager_email, created_at) VALUES (?, ?, ?, ?)",
+            (token, manager_id, manager_email, datetime.utcnow().isoformat())
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return token
+
+
+def verify_manager_session(token: str) -> Optional[Dict[str, Any]]:
+    """Verify a manager session token. Returns session dict or None."""
+    if not token:
+        return None
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM manager_sessions WHERE token = ?", (token,)
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def delete_manager_session(token: str):
+    """Delete a manager session (logout)."""
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM manager_sessions WHERE token = ?", (token,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def update_session_user(session_id: str, firebase_uid: str, user_email: str):
+    """Link a Firebase user to a session."""
+    conn = get_connection()
+    try:
+        conn.execute(
+            "UPDATE sessions SET firebase_uid = ?, user_email = ? WHERE id = ?",
+            (firebase_uid, user_email, session_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_all_employees() -> list:
+    """
+    Return a summary of all employees who have reached the pathway stage.
+    Joins sessions with skill_tests to compute progress per employee.
+    """
+    conn = get_connection()
+    try:
+        rows = conn.execute("""
+            SELECT id, candidate_name, user_email, firebase_uid,
+                   proficiency_scores, skill_gaps, pathway, status, created_at
+            FROM sessions
+            WHERE status = 'pathway' OR pathway IS NOT NULL
+            ORDER BY created_at DESC
+        """).fetchall()
+
+        employees = []
+        for row in rows:
+            session = dict(row)
+
+            # Parse JSON fields
+            for field in ["proficiency_scores", "skill_gaps", "pathway"]:
+                if session.get(field):
+                    try:
+                        session[field] = json.loads(session[field])
+                    except Exception:
+                        session[field] = None
+
+            # Skill test stats
+            tests = conn.execute(
+                "SELECT skill_name, status, score, passed FROM skill_tests WHERE session_id = ?",
+                (session["id"],)
+            ).fetchall()
+
+            total_skills = len(tests)
+            completed = sum(1 for t in tests if t["passed"])
+            in_progress = sum(1 for t in tests if t["status"] in ("learning", "testing", "needs_revision") and not t["passed"])
+
+            # Overall assessment score: average of proficiency_scores
+            prof = session.get("proficiency_scores") or {}
+            scores = [v["score"] for v in prof.values() if isinstance(v, dict) and "score" in v]
+            assessment_score = round(sum(scores) / len(scores)) if scores else None
+
+            # Skill gaps summary
+            gaps_raw = session.get("skill_gaps") or {}
+            skill_gaps = gaps_raw.get("skill_gaps", []) if isinstance(gaps_raw, dict) else []
+
+            # Display name: candidate_name > user_email > session id
+            display_name = session.get("candidate_name") or session.get("user_email") or session["id"][:8]
+
+            employees.append({
+                "session_id": session["id"],
+                "display_name": display_name,
+                "user_email": session.get("user_email") or "",
+                "assessment_score": assessment_score,
+                "total_skills": total_skills,
+                "completed_skills": completed,
+                "in_progress_skills": in_progress,
+                "skill_gaps": skill_gaps,
+                "status": session.get("status"),
+                "created_at": session.get("created_at"),
+            })
+
+        return employees
     finally:
         conn.close()

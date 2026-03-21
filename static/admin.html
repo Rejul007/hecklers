@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — AI Onboarding Engine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .fade-in { animation: fadeIn 0.25s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- ── LOGIN ─────────────────────────────────────────────────────────── -->
+  <div id="login-view" class="hidden min-h-screen flex items-center justify-center px-4">
+    <div class="w-full max-w-sm fade-in">
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gray-900 mb-4">
+          <i class="fa-solid fa-lock text-white text-xl"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900">Admin Access</h1>
+        <p class="text-gray-500 text-sm mt-1">Enter the admin password to continue</p>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-7">
+        <form id="login-form" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Admin Password</label>
+            <input id="admin-password" type="password" required placeholder="••••••••"
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent" />
+          </div>
+          <div id="login-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
+            <i class="fa-solid fa-circle-exclamation mr-1"></i>
+            <span id="login-error-msg">Incorrect password.</span>
+          </div>
+          <button type="submit" id="login-btn"
+            class="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors">
+            <span id="login-btn-text">Unlock</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DASHBOARD ─────────────────────────────────────────────────────── -->
+  <div id="admin-view" class="hidden">
+    <!-- Header -->
+    <header class="bg-gray-900 text-white">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <i class="fa-solid fa-lock text-gray-300 text-sm"></i>
+          <span class="font-semibold">Admin Panel</span>
+        </div>
+        <button id="signout-btn" class="text-gray-400 hover:text-white text-sm transition-colors flex items-center gap-1.5">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+        </button>
+      </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+
+      <!-- ── ADD MANAGER ─────────────────────────────────────────────── -->
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <h2 class="text-base font-semibold text-gray-900 mb-5 flex items-center gap-2">
+          <i class="fa-solid fa-user-plus text-indigo-500"></i> Add Manager
+        </h2>
+        <form id="add-form" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Email address</label>
+              <input id="new-email" type="email" required placeholder="manager@company.com"
+                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input id="new-password" type="password" required placeholder="min. 6 characters"
+                minlength="6"
+                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+            </div>
+          </div>
+          <div id="add-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
+            <i class="fa-solid fa-circle-exclamation mr-1"></i>
+            <span id="add-error-msg"></span>
+          </div>
+          <div id="add-success" class="hidden text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5">
+            <i class="fa-solid fa-circle-check mr-1"></i>
+            <span id="add-success-msg"></span>
+          </div>
+          <button type="submit" id="add-btn"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition-colors">
+            <span id="add-btn-text"><i class="fa-solid fa-plus mr-1.5"></i>Add Manager</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- ── MANAGER LIST ────────────────────────────────────────────── -->
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-base font-semibold text-gray-900 flex items-center gap-2">
+            <i class="fa-solid fa-users text-indigo-500"></i> Managers
+            <span id="manager-count" class="text-xs font-normal text-gray-400"></span>
+          </h2>
+          <button onclick="loadManagers()" class="text-sm text-indigo-600 hover:underline flex items-center gap-1">
+            <i class="fa-solid fa-rotate-right text-xs"></i> Refresh
+          </button>
+        </div>
+
+        <div id="list-loading" class="py-8 text-center text-gray-400 text-sm">
+          <i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Loading...
+        </div>
+        <div id="list-empty" class="hidden py-8 text-center text-gray-400 text-sm">
+          No managers yet. Add one above.
+        </div>
+        <div id="manager-list" class="hidden divide-y divide-gray-100"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // Firebase Web API key (used only for creating Firebase accounts via REST)
+    const FIREBASE_API_KEY = 'AIzaSyBDnt-TNjyl0jJmf-JIwn-SUa0iRpifOV8';
+
+    // Safe JSON parse — returns null if the response isn't JSON
+    async function safeJson(res) {
+      try { return await res.json(); } catch (_) { return null; }
+    }
+    const ADMIN_TOKEN_KEY = 'admin_token';
+
+    function getToken() { return localStorage.getItem(ADMIN_TOKEN_KEY) || ''; }
+    function saveToken(t) { localStorage.setItem(ADMIN_TOKEN_KEY, t); }
+    function clearToken() { localStorage.removeItem(ADMIN_TOKEN_KEY); }
+
+    function adminHeaders() {
+      return { 'Content-Type': 'application/json', 'X-Admin-Token': getToken() };
+    }
+
+    // ── Views ──────────────────────────────────────────────────────────────
+    function showLogin() {
+      document.getElementById('login-view').classList.remove('hidden');
+      document.getElementById('admin-view').classList.add('hidden');
+    }
+    function showAdmin() {
+      document.getElementById('login-view').classList.add('hidden');
+      document.getElementById('admin-view').classList.remove('hidden');
+    }
+
+    // ── Login ──────────────────────────────────────────────────────────────
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('admin-password').value;
+      const btn = document.getElementById('login-btn');
+      const btnText = document.getElementById('login-btn-text');
+      btn.disabled = true;
+      btnText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Checking...';
+      document.getElementById('login-error').classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await safeJson(res);
+        if (!res.ok) {
+          document.getElementById('login-error-msg').textContent = (data && data.detail) || 'Incorrect password.';
+          document.getElementById('login-error').classList.remove('hidden');
+          return;
+        }
+        saveToken(data.token);
+        showAdmin();
+        loadManagers();
+      } catch {
+        document.getElementById('login-error-msg').textContent = 'Network error. Please try again.';
+        document.getElementById('login-error').classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btnText.textContent = 'Unlock';
+      }
+    });
+
+    // ── Sign out ───────────────────────────────────────────────────────────
+    document.getElementById('signout-btn').addEventListener('click', async () => {
+      try {
+        await fetch('/api/admin/logout', { method: 'POST', headers: adminHeaders() });
+      } catch (_) {}
+      clearToken();
+      showLogin();
+    });
+
+    // ── Load managers ──────────────────────────────────────────────────────
+    async function loadManagers() {
+      document.getElementById('list-loading').classList.remove('hidden');
+      document.getElementById('list-empty').classList.add('hidden');
+      document.getElementById('manager-list').classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/admin/managers', { headers: adminHeaders() });
+        if (res.status === 401) { clearToken(); showLogin(); return; }
+        const data = await safeJson(res);
+        if (!res.ok) throw new Error((data && data.detail) || `Server error ${res.status}`);
+        renderManagers((data && data.managers) || []);
+      } catch (err) {
+        document.getElementById('list-loading').classList.add('hidden');
+        alert('Failed to load managers: ' + err.message);
+      }
+    }
+
+    function renderManagers(managers) {
+      document.getElementById('list-loading').classList.add('hidden');
+      document.getElementById('manager-count').textContent = `(${managers.length})`;
+
+      if (managers.length === 0) {
+        document.getElementById('list-empty').classList.remove('hidden');
+        return;
+      }
+
+      const list = document.getElementById('manager-list');
+      list.innerHTML = '';
+      managers.forEach(m => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between py-3 fade-in';
+        const date = m.created_at ? new Date(m.created_at).toLocaleDateString() : '';
+        row.innerHTML = `
+          <div>
+            <p class="text-sm font-medium text-gray-800">${escHtml(m.email)}</p>
+            ${date ? `<p class="text-xs text-gray-400">Added ${date}</p>` : ''}
+          </div>
+          <button
+            onclick="removeManager('${escHtml(m.email)}')"
+            class="text-xs text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 rounded-lg px-3 py-1.5 transition-colors flex items-center gap-1.5">
+            <i class="fa-solid fa-trash-can"></i> Remove
+          </button>`;
+        list.appendChild(row);
+      });
+      list.classList.remove('hidden');
+    }
+
+    // ── Add manager ────────────────────────────────────────────────────────
+    document.getElementById('add-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('new-email').value.trim();
+      const password = document.getElementById('new-password').value;
+      const btn = document.getElementById('add-btn');
+      const btnText = document.getElementById('add-btn-text');
+
+      btn.disabled = true;
+      btnText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i>Creating...';
+      document.getElementById('add-error').classList.add('hidden');
+      document.getElementById('add-success').classList.add('hidden');
+
+      try {
+        // Step 1: create Firebase account (skip if it already exists)
+        const fbRes = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, returnSecureToken: false })
+          }
+        );
+        if (!fbRes.ok) {
+          const fbData = await fbRes.json();
+          const code = fbData.error?.message || 'FIREBASE_ERROR';
+          if (code === 'EMAIL_EXISTS') {
+            // Account already exists — fine, just whitelist them below
+          } else {
+            const friendlyMsg = code.startsWith('WEAK_PASSWORD')
+              ? 'Password must be at least 6 characters.'
+              : code === 'INVALID_EMAIL'
+              ? 'Invalid email address.'
+              : `Firebase error: ${code}`;
+            showAddError(friendlyMsg);
+            return;
+          }
+        }
+
+        // Step 2: whitelist the email in our backend
+        const res = await fetch('/api/admin/managers', {
+          method: 'POST',
+          headers: adminHeaders(),
+          body: JSON.stringify({ email })
+        });
+        if (res.status === 401) { clearToken(); showLogin(); return; }
+        if (res.status === 409) {
+          showAddError('This email is already whitelisted as a manager.');
+          return;
+        }
+        const data = await safeJson(res);
+        if (!res.ok) {
+          showAddError((data && data.detail) || `Server error ${res.status}`);
+          return;
+        }
+
+        document.getElementById('add-success-msg').textContent =
+          `${email} added as a manager. They can now sign in at /manager.html.`;
+        document.getElementById('add-success').classList.remove('hidden');
+        document.getElementById('add-form').reset();
+        loadManagers();
+      } catch (err) {
+        showAddError('Network error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btnText.innerHTML = '<i class="fa-solid fa-plus mr-1.5"></i>Add Manager';
+      }
+    });
+
+    function showAddError(msg) {
+      document.getElementById('add-error-msg').textContent = msg;
+      document.getElementById('add-error').classList.remove('hidden');
+    }
+
+    // ── Remove manager ─────────────────────────────────────────────────────
+    async function removeManager(email) {
+      if (!confirm(`Remove ${email} as a manager?\n\nThey will immediately lose dashboard access. Their Firebase account will remain (they can still log into the employee app).`)) return;
+
+      try {
+        const res = await fetch(`/api/admin/managers/${encodeURIComponent(email)}`, {
+          method: 'DELETE',
+          headers: adminHeaders()
+        });
+        if (res.status === 401) { clearToken(); showLogin(); return; }
+        if (!res.ok) {
+          const data = await safeJson(res);
+          alert((data && data.detail) || `Failed to remove manager (${res.status})`);
+          return;
+        }
+        loadManagers();
+      } catch (err) {
+        alert('Network error: ' + err.message);
+      }
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ── Init ───────────────────────────────────────────────────────────────
+    (async function init() {
+      const token = getToken();
+      if (token) {
+        // Verify token is still valid
+        const res = await fetch('/api/admin/managers', { headers: adminHeaders() });
+        if (res.status === 401) {
+          clearToken();
+          showLogin();
+        } else {
+          showAdmin();
+          const data = await safeJson(res);
+          renderManagers((data && data.managers) || []);
+        }
+      } else {
+        showLogin();
+      }
+    })();
+  </script>
+</body>
+</html>

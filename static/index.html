@@ -698,6 +698,13 @@ async function startNewSession() {
     state.sessionId = data.session_id;
     localStorage.setItem('onboarding_session_id', state.sessionId);
     document.getElementById('setup-session-id').textContent = state.sessionId;
+    if (firebase.auth().currentUser) {
+      const user = firebase.auth().currentUser;
+      await api('POST', `/sessions/${state.sessionId}/link-user`, {
+        firebase_uid: user.uid,
+        user_email: user.email || ''
+      });
+    }
     hideLoading();
     showView('setup');
     showToast('New session created!');
