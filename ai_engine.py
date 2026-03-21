@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MODEL = "qwen2.5:7b"
+MODEL = "qwen2.5:3b"
 
 # Lazy client — initialized on first use
 _client: Optional[OpenAI] = None

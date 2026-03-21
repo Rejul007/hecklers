@@ -1395,15 +1395,6 @@ async function renderPathway() {
     low: 'bg-green-100 text-green-700'
   };
 
-  const resourceIcons = {
-    course: 'fa fa-graduation-cap text-indigo-600',
-    book: 'fa fa-book text-purple-600',
-    practice: 'fa fa-laptop-code text-green-600',
-    video: 'fa fa-play-circle text-red-600',
-    docs: 'fa fa-file-code text-blue-600',
-    tutorial: 'fa fa-chalkboard-teacher text-orange-600',
-  };
-
   skills.forEach((skill, idx) => {
     const progress = state.skillProgress[skill.skill_name] || { status: 'not_started', passed: false, score: 0, attempts: 0 };
     const isPassed = progress.passed;
@@ -1418,21 +1409,15 @@ async function renderPathway() {
     else if (progress.status === 'needs_revision') statusBadge = '<span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold"><i class="fa fa-rotate-right mr-1"></i>Needs Revision</span>';
     else statusBadge = '<span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold"><i class="fa fa-clock mr-1"></i>Not Started</span>';
 
-    // Resources
-    const resourcesHtml = (skill.resources || []).map(r => {
-      const icon = resourceIcons[r.type?.toLowerCase()] || 'fa fa-link text-gray-500';
-      return `<a href="${r.url || '#'}" target="_blank" class="flex items-start gap-3 p-3 bg-gray-50 rounded-xl hover:bg-indigo-50 transition-all group">
-        <i class="${icon} text-lg mt-0.5 group-hover:scale-110 transition-transform"></i>
-        <div class="flex-1 min-w-0">
-          <p class="font-semibold text-gray-900 text-sm group-hover:text-indigo-700 truncate">${r.title}</p>
-          <p class="text-gray-500 text-xs">${r.provider || ''} ${r.estimated_hours ? `• ~${r.estimated_hours}h` : ''}</p>
-          <p class="text-gray-400 text-xs mt-0.5 line-clamp-1">${r.description || ''}</p>
-        </div>
-        <i class="fa fa-arrow-up-right-from-square text-gray-300 group-hover:text-indigo-400 text-xs mt-1"></i>
-      </a>`;
-    }).join('');
+    // Key topics derived from learning step focus areas
+    const topicsHtml = (skill.learning_steps || []).map(step =>
+      `<li class="flex items-start gap-2 text-sm text-gray-700">
+        <i class="fa fa-circle-check text-indigo-400 mt-0.5 shrink-0"></i>
+        <span>${step.focus}</span>
+      </li>`
+    ).join('');
 
-    // Learning steps
+    // Learning steps timeline
     const stepsHtml = (skill.learning_steps || []).map(step => `
       <div class="flex gap-4">
         <div class="flex flex-col items-center">
@@ -1477,22 +1462,31 @@ async function renderPathway() {
           ${progress.attempts > 0 ? `<p class="text-xs text-gray-400 mt-2"><i class="fa fa-history mr-1"></i>Attempts: ${progress.attempts} | Last score: ${progress.score}%</p>` : ''}
         </div>
 
-        <!-- Tabs / Details (collapsible) -->
-        <div class="p-6">
+        <!-- Skill Gap + Topics + Timeline -->
+        <div class="p-6 space-y-6">
+
+          <!-- Skill Gap -->
+          <div class="bg-orange-50 border border-orange-200 rounded-xl p-4">
+            <h4 class="font-bold text-orange-800 mb-1 text-sm"><i class="fa fa-triangle-exclamation text-orange-500 mr-1"></i>Skill Gap</h4>
+            <p class="text-orange-700 text-sm">${skill.reasoning || `You need to advance from ${skill.current_level || 'your current level'} to ${skill.target_level} in ${skill.skill_name}.`}</p>
+            ${(skill.prerequisites || []).length ? `<p class="text-orange-600 text-xs mt-2"><i class="fa fa-layer-group mr-1"></i><strong>Prerequisites:</strong> ${skill.prerequisites.join(', ')}</p>` : ''}
+          </div>
+
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Resources -->
+            <!-- What this skill comprises -->
             <div>
-              <h4 class="font-bold text-gray-800 mb-3 text-sm"><i class="fa fa-book-open text-indigo-500 mr-1"></i>Learning Resources</h4>
-              <div class="space-y-2">${resourcesHtml}</div>
+              <h4 class="font-bold text-gray-800 mb-3 text-sm"><i class="fa fa-list-check text-indigo-500 mr-1"></i>What This Skill Covers</h4>
+              <ul class="space-y-2">${topicsHtml}</ul>
+              ${skill.practice_project ? `<div class="mt-4 bg-purple-50 rounded-xl p-3 border border-purple-200">
+                <p class="text-purple-700 text-xs font-bold mb-1"><i class="fa fa-code mr-1"></i>Capstone Project:</p>
+                <p class="text-purple-600 text-xs">${skill.practice_project}</p>
+              </div>` : ''}
             </div>
-            <!-- Timeline -->
+
+            <!-- Week-by-Week Plan -->
             <div>
               <h4 class="font-bold text-gray-800 mb-3 text-sm"><i class="fa fa-calendar-days text-purple-500 mr-1"></i>Week-by-Week Plan</h4>
               <div>${stepsHtml}</div>
-              ${skill.practice_project ? `<div class="mt-3 bg-purple-50 rounded-xl p-3 border border-purple-200">
-                <p class="text-purple-700 text-xs font-bold mb-1"><i class="fa fa-code mr-1"></i>Practice Project:</p>
-                <p class="text-purple-600 text-xs">${skill.practice_project}</p>
-              </div>` : ''}
             </div>
           </div>
         </div>
