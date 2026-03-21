@@ -11,9 +11,9 @@ done
 echo "Ollama is ready."
 
 # Pull model if not already present
-if ! ollama list | grep -q "qwen2.5:3b"; then
-  echo "Pulling qwen2.5:3b model..."
-  ollama pull qwen2.5:3b
+if ! ollama list | grep -q "qwen2.5:7b"; then
+  echo "Pulling qwen2.5:7b model..."
+  ollama pull qwen2.5:7b
 fi
 
 # Start FastAPI
