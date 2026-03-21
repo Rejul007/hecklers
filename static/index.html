@@ -53,11 +53,11 @@
 
   <!-- FIXED TOP-RIGHT USER / LOGOUT BAR -->
   <div id="user-topbar" class="hidden fixed top-4 right-4 z-50 flex items-center gap-2">
-    <div class="glass rounded-xl px-3 py-2 flex items-center gap-2">
-      <div id="topbar-avatar" class="w-7 h-7 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-bold shrink-0"></div>
+    <div class="bg-indigo-600 rounded-xl px-3 py-2 flex items-center gap-2 shadow-lg">
+      <div id="topbar-avatar" class="w-7 h-7 rounded-full bg-indigo-400 flex items-center justify-center text-white text-xs font-bold shrink-0"></div>
       <span id="topbar-name" class="text-white text-sm font-medium hidden sm:block max-w-32 truncate"></span>
     </div>
-    <button onclick="signOut()" class="glass rounded-xl px-3 py-2 text-white text-sm font-semibold hover:bg-white/20 transition-all flex items-center gap-2 border border-white/20">
+    <button onclick="signOut()" class="bg-indigo-700 hover:bg-indigo-800 rounded-xl px-3 py-2 text-white text-sm font-semibold transition-all flex items-center gap-2 shadow-lg">
       <i class="fa fa-right-from-bracket"></i>
       <span class="hidden sm:block">Sign Out</span>
     </button>
@@ -484,8 +484,8 @@
   <!-- =====================================================================
        SKILL TEST MODAL
   ====================================================================== -->
-  <div id="skill-test-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-40 p-4 overflow-y-auto">
-    <div class="card w-full max-w-2xl my-4">
+  <div id="skill-test-modal" class="hidden fixed inset-0 bg-black/70 z-40 overflow-y-auto">
+    <div class="card w-full max-w-2xl my-8 mx-auto">
       <!-- Header -->
       <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 rounded-t-2xl">
         <div class="flex items-center justify-between">
@@ -1172,22 +1172,16 @@ function renderQuestion(idx) {
   ['A', 'B', 'C', 'D', 'E'].forEach(letter => {
     const text = q.options[letter];
     if (!text) return;
-    const isIDontKnow = letter === 'E';
     const isSelected = localSel === letter;
-    let btnClass = 'option-btn w-full text-left p-4 rounded-xl flex items-start gap-3 cursor-pointer';
-    if (isSelected) btnClass += ' selected';
-    if (isIDontKnow) btnClass += ' opacity-80';
-
+    const btnClass = 'option-btn w-full text-left p-4 rounded-xl flex items-start gap-3 cursor-pointer' + (isSelected ? ' selected' : '');
     const badgeClass = isSelected
       ? 'w-8 h-8 rounded-lg border-2 flex items-center justify-center font-bold text-sm shrink-0 bg-indigo-600 border-indigo-600 text-white'
-      : isIDontKnow
-        ? 'w-8 h-8 rounded-lg border-2 border-gray-300 flex items-center justify-center font-bold text-sm shrink-0 text-gray-400'
-        : 'w-8 h-8 rounded-lg border-2 border-current flex items-center justify-center font-bold text-sm shrink-0';
+      : 'w-8 h-8 rounded-lg border-2 border-current flex items-center justify-center font-bold text-sm shrink-0 text-gray-600';
 
     optionsEl.innerHTML += `
       <button class="${btnClass}" onclick="selectOption('${letter}')">
         <span class="${badgeClass}">${letter}</span>
-        <span class="${isIDontKnow ? 'text-gray-400 italic' : 'text-gray-800'} text-sm">${text}</span>
+        <span class="text-gray-800 text-sm">${text}</span>
       </button>`;
   });
 
@@ -1658,6 +1652,7 @@ function showTestResults(result) {
   document.getElementById('test-question-view').classList.add('hidden');
   document.getElementById('test-results-view').classList.remove('hidden');
   document.getElementById('test-progress-section').classList.add('hidden');
+  document.getElementById('skill-test-modal').scrollTop = 0;
 
   // Pass/Fail banner
   const passBanner = document.getElementById('test-pass-banner');

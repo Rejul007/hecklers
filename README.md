@@ -83,7 +83,7 @@
 
 ```bash
 # 1. Clone the repository
-git clone <repo-url>
+git clone https://github.com/Rejul007/hecklers.git
 cd hecklers
 
 # 2. Create and activate virtual environment

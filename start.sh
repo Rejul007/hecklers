@@ -1,4 +1,12 @@
 #!/bin/bash
+
+# Install Ollama if not already installed
+if ! command -v ollama &> /dev/null; then
+  echo "Ollama not found. Installing..."
+  curl -fsSL https://ollama.com/install.sh | sh
+  echo "Ollama installed."
+fi
+
 # Start Ollama in the background
 ollama serve &
 OLLAMA_PID=$!
