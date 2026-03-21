@@ -14,7 +14,7 @@ from typing import Optional, Dict, Any
 
 
 # Path to the SQLite database file
-DB_PATH = "onboarding.db"
+DB_PATH = os.environ.get("DB_PATH", "onboarding.db")
 
 
 def get_connection() -> sqlite3.Connection:

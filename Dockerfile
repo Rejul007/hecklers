@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------
 # Dockerfile for AI Onboarding Engine
-# Runs Ollama (qwen2.5:3b) + FastAPI in a single container
-# First run downloads the model (~1.9 GB) — subsequent runs use cache
+# Runs Ollama (qwen2.5:7b) + FastAPI in a single container
+# First run downloads the model (~4.7 GB) — subsequent runs use cache
 # -----------------------------------------------------------------------
 
 FROM python:3.11-slim
