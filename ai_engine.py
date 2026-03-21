@@ -588,7 +588,7 @@ Rules:
 
 def generate_skill_test(skill_name: str, target_level: str) -> List[Dict]:
     """
-    Generate 8 verification MCQs for a specific skill at the target proficiency level.
+    Generate 10 verification MCQs for a specific skill at the target proficiency level.
 
     Returns list of 8 MCQ dicts:
         [{id, question, options {A/B/C/D}, correct_answer, explanation, concept_tested}]
@@ -597,7 +597,7 @@ def generate_skill_test(skill_name: str, target_level: str) -> List[Dict]:
 
 TARGET PROFICIENCY LEVEL: {target_level}
 
-Generate exactly 8 multiple choice questions that verify {target_level}-level competency in {skill_name}.
+Generate exactly 10 multiple choice questions that verify {target_level}-level competency in {skill_name}.
 Questions should progressively increase in difficulty within the {target_level} range.
 
 Return ONLY a valid JSON array:
@@ -618,7 +618,7 @@ Return ONLY a valid JSON array:
 ]
 
 Rules:
-- All 8 questions must test {target_level}-level knowledge of {skill_name}
+- All 10 questions must test {target_level}-level knowledge of {skill_name}
 - Questions should test PRACTICAL application, not just memorization
 - Include scenario-based questions where appropriate
 - All 4 options must be plausible to an intermediate learner
@@ -629,7 +629,7 @@ Rules:
 
     response = _get_client().chat.completions.create(
         model=MODEL,
-        max_tokens=8000,
+        max_tokens=12000,
         messages=[{"role": "user", "content": prompt}]
     )
 
@@ -642,7 +642,7 @@ Rules:
     for i, q in enumerate(questions):
         q["id"] = i + 1
 
-    return questions[:8]  # Ensure exactly 8
+    return questions[:10]  # Ensure exactly 10
 
 
 def evaluate_skill_test(

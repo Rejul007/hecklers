@@ -470,7 +470,7 @@ async def get_pathway(session_id: str):
 
 @app.post("/api/sessions/{session_id}/skills/{skill_name}/test/generate")
 async def generate_skill_test(session_id: str, skill_name: str):
-    """Generate 8 verification MCQs for a specific skill."""
+    """Generate 10 verification MCQs for a specific skill."""
     session = database.get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")

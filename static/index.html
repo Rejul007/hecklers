@@ -51,18 +51,22 @@
 ====================================================================== -->
 <div id="app" class="min-h-screen py-6 px-4">
 
+  <!-- FIXED TOP-RIGHT USER / LOGOUT BAR -->
+  <div id="user-topbar" class="hidden fixed top-4 right-4 z-50 flex items-center gap-2">
+    <div class="glass rounded-xl px-3 py-2 flex items-center gap-2">
+      <div id="topbar-avatar" class="w-7 h-7 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-bold shrink-0"></div>
+      <span id="topbar-name" class="text-white text-sm font-medium hidden sm:block max-w-32 truncate"></span>
+    </div>
+    <button onclick="signOut()" class="glass rounded-xl px-3 py-2 text-white text-sm font-semibold hover:bg-white/20 transition-all flex items-center gap-2 border border-white/20">
+      <i class="fa fa-right-from-bracket"></i>
+      <span class="hidden sm:block">Sign Out</span>
+    </button>
+  </div>
+
   <!-- TOP NAV / STEPPER -->
   <div id="stepper" class="max-w-5xl mx-auto mb-8 hidden">
     <div class="glass rounded-2xl p-4">
-      <div id="user-bar" class="hidden flex items-center justify-between mb-3 pb-3 border-b border-white/20">
-        <div class="flex items-center gap-2">
-          <div id="user-avatar" class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-bold"></div>
-          <span id="user-display-name" class="text-white text-sm font-medium"></span>
-        </div>
-        <button onclick="signOut()" class="text-indigo-300 hover:text-white text-xs flex items-center gap-1 transition-colors">
-          <i class="fa fa-right-from-bracket"></i> Sign Out
-        </button>
-      </div>
+      <div id="user-bar" class="hidden"></div>
       <div class="flex items-center justify-between">
         <div id="step-1" class="stepper-item flex flex-col items-center flex-1">
           <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 bg-gray-200 text-gray-500" id="step-icon-1"><i class="fa fa-upload"></i></div>
@@ -369,27 +373,25 @@
 
       <h3 id="q-question-text" class="text-xl font-bold text-gray-900 mb-8 leading-relaxed"></h3>
 
-      <div id="q-options" class="space-y-3 mb-8"></div>
+      <div id="q-options" class="space-y-3 mb-6"></div>
 
-      <!-- Feedback (shown after answering) -->
-      <div id="q-feedback" class="hidden rounded-xl p-4 mb-6 transition-all">
-        <div class="flex items-start gap-3">
-          <i id="q-feedback-icon" class="text-xl mt-0.5"></i>
-          <div>
-            <p id="q-feedback-result" class="font-bold mb-1"></p>
-            <p id="q-feedback-explanation" class="text-sm leading-relaxed"></p>
-          </div>
-        </div>
-      </div>
-
-      <div class="flex gap-4">
-        <button id="q-submit-btn" onclick="submitAnswer()" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-          Submit Answer
+      <!-- Nav: Prev / Next -->
+      <div class="flex gap-3 mb-3">
+        <button id="q-prev-btn" onclick="questNavQuestion(-1)" disabled
+          class="flex-1 border-2 border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+          <i class="fa fa-chevron-left mr-1"></i> Previous
         </button>
-        <button id="q-finish-btn" onclick="finishQuestionnaire()" class="hidden flex-1 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-all">
-          <i class="fa fa-flag-checkered mr-1"></i> Finish Assessment
+        <button id="q-next-btn" onclick="questNavQuestion(1)"
+          class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+          Next <i class="fa fa-chevron-right ml-1"></i>
         </button>
       </div>
+
+      <!-- Submit All -->
+      <button id="q-submit-all-btn" onclick="submitAllAnswers()"
+        class="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+        <i class="fa fa-flag-checkered mr-2"></i><span id="q-submit-all-label">Submit Assessment</span>
+      </button>
     </div>
   </div>
 
@@ -865,13 +867,15 @@ function friendlyAuthError(code) {
 // -----------------------------------------------------------------------
 auth.onAuthStateChanged(async (user) => {
   if (user) {
-    // Update user bar in stepper
     const initials = (user.displayName || user.email || '?').charAt(0).toUpperCase();
-    document.getElementById('user-avatar').textContent = initials;
-    document.getElementById('user-display-name').textContent = user.displayName || user.email;
-    document.getElementById('user-bar').classList.remove('hidden');
+    const displayName = user.displayName || user.email;
 
-    // Update welcome greeting
+    // Fixed top-right bar
+    document.getElementById('topbar-avatar').textContent = initials;
+    document.getElementById('topbar-name').textContent = displayName;
+    document.getElementById('user-topbar').classList.remove('hidden');
+
+    // Welcome greeting
     const welcomeName = user.displayName || user.email.split('@')[0];
     document.getElementById('welcome-user-name').textContent = welcomeName;
     document.getElementById('welcome-user-greeting').classList.remove('hidden');
@@ -879,7 +883,7 @@ auth.onAuthStateChanged(async (user) => {
     // Go straight to the onboarding engine
     await startNewSession();
   } else {
-    document.getElementById('user-bar').classList.add('hidden');
+    document.getElementById('user-topbar').classList.add('hidden');
     document.getElementById('welcome-user-greeting').classList.add('hidden');
     showView('auth');
   }
@@ -1087,24 +1091,21 @@ async function startQuestionnaire() {
   }
 }
 
+// localAnswers stores selections before final batch submission
+// keyed by String(question_id) → letter
 function startQuestionnaireView() {
   if (state.questions.length === 0) return;
-  // Find first unanswered
-  const answered = Object.keys(state.questionnaireState.answers || {});
-  let idx = 0;
-  for (let i = 0; i < state.questions.length; i++) {
-    if (!answered.includes(String(state.questions[i].id))) { idx = i; break; }
-  }
-  state.questionnaireState.currentIndex = idx;
-  renderQuestion(idx);
+  // Seed local answers from any already-saved answers (e.g. restored session)
+  state.localAnswers = Object.assign({}, state.questionnaireState.answers || {});
+  state.questionnaireState.currentIndex = 0;
+  renderQuestion(0);
   updateQuestionnaireProgress();
 }
 
 function renderQuestion(idx) {
   const q = state.questions[idx];
   if (!q) return;
-
-  state.selectedAnswer = state.questionnaireState.answers[String(q.id)] || null;
+  state.questionnaireState.currentIndex = idx;
 
   // Badges
   document.getElementById('q-skill-badge').textContent = q.skill;
@@ -1112,134 +1113,120 @@ function renderQuestion(idx) {
   const levelColors = { basic: 'bg-green-100 text-green-700', intermediate: 'bg-yellow-100 text-yellow-700', advanced: 'bg-red-100 text-red-700' };
   levelEl.className = `px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${levelColors[q.level] || 'bg-gray-100 text-gray-600'}`;
   levelEl.textContent = q.level;
-  document.getElementById('q-number-badge').textContent = `Q${q.id} of ${state.questions.length}`;
+  document.getElementById('q-number-badge').textContent = `Q${idx + 1} of ${state.questions.length}`;
   document.getElementById('q-question-text').textContent = q.question;
   document.getElementById('q-skill-text').textContent = `Skill: ${q.skill}`;
 
-  // Options
+  // Options — always interactive, never locked
   const optionsEl = document.getElementById('q-options');
   optionsEl.innerHTML = '';
-  const isAnswered = !!state.questionnaireState.answers[String(q.id)];
+  const localSel = state.localAnswers[String(q.id)];
 
   ['A', 'B', 'C', 'D', 'E'].forEach(letter => {
     const text = q.options[letter];
     if (!text) return;
     const isIDontKnow = letter === 'E';
-    let btnClass = 'option-btn w-full text-left p-4 rounded-xl flex items-start gap-3 cursor-pointer ';
-    if (isAnswered) {
-      if (letter === q.correct_answer) btnClass += 'correct';
-      else if (letter === state.questionnaireState.answers[String(q.id)]) btnClass += 'incorrect';
-      else btnClass += 'opacity-50';
-    } else if (state.selectedAnswer === letter) {
-      btnClass += 'selected';
-    }
-    const badgeExtra = letter === q.correct_answer && isAnswered ? 'bg-green-500 border-green-500 text-white' : isIDontKnow ? 'text-gray-400 border-gray-300' : '';
+    const isSelected = localSel === letter;
+    let btnClass = 'option-btn w-full text-left p-4 rounded-xl flex items-start gap-3 cursor-pointer';
+    if (isSelected) btnClass += ' selected';
+    if (isIDontKnow) btnClass += ' opacity-80';
+
+    const badgeClass = isSelected
+      ? 'w-8 h-8 rounded-lg border-2 flex items-center justify-center font-bold text-sm shrink-0 bg-indigo-600 border-indigo-600 text-white'
+      : isIDontKnow
+        ? 'w-8 h-8 rounded-lg border-2 border-gray-300 flex items-center justify-center font-bold text-sm shrink-0 text-gray-400'
+        : 'w-8 h-8 rounded-lg border-2 border-current flex items-center justify-center font-bold text-sm shrink-0';
 
     optionsEl.innerHTML += `
-      <button class="${btnClass}${isIDontKnow ? ' opacity-80' : ''}" onclick="selectOption('${letter}')" ${isAnswered ? 'disabled' : ''}>
-        <span class="w-8 h-8 rounded-lg border-2 border-current flex items-center justify-center font-bold text-sm shrink-0 ${badgeExtra}">${letter}</span>
+      <button class="${btnClass}" onclick="selectOption('${letter}')">
+        <span class="${badgeClass}">${letter}</span>
         <span class="${isIDontKnow ? 'text-gray-400 italic' : 'text-gray-800'} text-sm">${text}</span>
       </button>`;
   });
 
-  // Feedback
-  const feedbackEl = document.getElementById('q-feedback');
-  if (isAnswered) {
-    const userAns = state.questionnaireState.answers[String(q.id)];
-    const isCorrect = userAns === q.correct_answer;
-    feedbackEl.className = `rounded-xl p-4 mb-6 transition-all ${isCorrect ? 'bg-green-50 border-l-4 border-green-500' : 'bg-red-50 border-l-4 border-red-500'}`;
-    document.getElementById('q-feedback-icon').className = isCorrect ? 'fa fa-circle-check text-green-600 text-xl mt-0.5' : 'fa fa-circle-xmark text-red-600 text-xl mt-0.5';
-    document.getElementById('q-feedback-result').textContent = isCorrect ? 'Correct!' : `Incorrect — correct answer is ${q.correct_answer}`;
-    document.getElementById('q-feedback-result').className = `font-bold mb-1 ${isCorrect ? 'text-green-700' : 'text-red-700'}`;
-    document.getElementById('q-feedback-explanation').textContent = q.explanation || '';
-    feedbackEl.classList.remove('hidden');
-  } else {
-    feedbackEl.classList.add('hidden');
-  }
+  // Prev / Next buttons
+  document.getElementById('q-prev-btn').disabled = idx === 0;
+  const nextBtn = document.getElementById('q-next-btn');
+  const isLast = idx === state.questions.length - 1;
+  nextBtn.disabled = isLast;
+  nextBtn.classList.toggle('opacity-40', isLast);
 
-  // Buttons
-  const submitBtn = document.getElementById('q-submit-btn');
-  const finishBtn = document.getElementById('q-finish-btn');
-  const allAnswered = state.questions.every(q => state.questionnaireState.answers[String(q.id)]);
-
-  if (allAnswered) {
-    submitBtn.classList.add('hidden');
-    finishBtn.classList.remove('hidden');
+  // Submit All button
+  const answeredCount = Object.keys(state.localAnswers).length;
+  const total = state.questions.length;
+  const submitBtn = document.getElementById('q-submit-all-btn');
+  const submitLabel = document.getElementById('q-submit-all-label');
+  if (answeredCount === total) {
+    submitLabel.textContent = 'Submit Assessment';
+    submitBtn.disabled = false;
   } else {
-    submitBtn.classList.remove('hidden');
-    submitBtn.disabled = isAnswered || !state.selectedAnswer;
-    finishBtn.classList.add('hidden');
+    submitLabel.textContent = `Submit Assessment (${answeredCount}/${total} answered)`;
+    submitBtn.disabled = false; // allow submitting partial, warn below
   }
 }
 
 function selectOption(letter) {
-  const q = state.questions[state.questionnaireState.currentIndex];
-  if (!q || state.questionnaireState.answers[String(q.id)]) return;
-  state.selectedAnswer = letter;
+  const idx = state.questionnaireState.currentIndex;
+  const q = state.questions[idx];
+  if (!q) return;
+  state.localAnswers[String(q.id)] = letter;
 
+  // Update option visuals
   document.querySelectorAll('#q-options button').forEach(btn => {
-    btn.classList.remove('selected');
-    const ltr = btn.querySelector('span').textContent;
-    if (ltr === letter) btn.classList.add('selected');
+    const spanBadge = btn.querySelector('span:first-child');
+    const ltr = spanBadge.textContent.trim();
+    const isIDontKnow = ltr === 'E';
+    const sel = ltr === letter;
+    btn.classList.toggle('selected', sel);
+    spanBadge.className = sel
+      ? 'w-8 h-8 rounded-lg border-2 flex items-center justify-center font-bold text-sm shrink-0 bg-indigo-600 border-indigo-600 text-white'
+      : isIDontKnow
+        ? 'w-8 h-8 rounded-lg border-2 border-gray-300 flex items-center justify-center font-bold text-sm shrink-0 text-gray-400'
+        : 'w-8 h-8 rounded-lg border-2 border-current flex items-center justify-center font-bold text-sm shrink-0';
   });
-  document.getElementById('q-submit-btn').disabled = false;
+
+  // Update submit label
+  const answeredCount = Object.keys(state.localAnswers).length;
+  const total = state.questions.length;
+  const submitLabel = document.getElementById('q-submit-all-label');
+  submitLabel.textContent = answeredCount === total
+    ? 'Submit Assessment'
+    : `Submit Assessment (${answeredCount}/${total} answered)`;
+
+  updateQuestionnaireProgress();
 }
 
-async function submitAnswer() {
-  const q = state.questions[state.questionnaireState.currentIndex];
-  if (!q || !state.selectedAnswer) return;
-
-  const submitBtn = document.getElementById('q-submit-btn');
-  submitBtn.disabled = true;
-  submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i>Checking...';
-
-  try {
-    const data = await api('POST', `/sessions/${state.sessionId}/questionnaire/answer`, {
-      question_id: q.id,
-      answer: state.selectedAnswer
-    });
-
-    // Update local state
-    state.questionnaireState.answers[String(q.id)] = state.selectedAnswer;
-    if (data.is_correct) state.correctCount++;
-
-    // Re-render current question with feedback
-    renderQuestion(state.questionnaireState.currentIndex);
-    updateQuestionnaireProgress();
-
-    // Auto-advance after 2.5 seconds if there's a next question
-    if (data.next_question && !data.progress.completed) {
-      setTimeout(() => {
-        const nextIdx = state.questions.findIndex(q => q.id === data.next_question.id);
-        if (nextIdx >= 0) {
-          state.questionnaireState.currentIndex = nextIdx;
-          state.selectedAnswer = null;
-          renderQuestion(nextIdx);
-        }
-      }, 2500);
-    } else if (data.progress.completed) {
-      document.getElementById('q-finish-btn').classList.remove('hidden');
-      submitBtn.classList.add('hidden');
-    }
-  } catch (e) {
-    showToast('Failed to submit answer: ' + e.message, 'error');
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = 'Submit Answer';
+function questNavQuestion(dir) {
+  const idx = state.questionnaireState.currentIndex + dir;
+  if (idx >= 0 && idx < state.questions.length) {
+    renderQuestion(idx);
   }
 }
 
-function updateQuestionnaireProgress() {
-  const answered = Object.keys(state.questionnaireState.answers).length;
+async function submitAllAnswers() {
   const total = state.questions.length;
-  const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
-  document.getElementById('q-progress-text').textContent = `${answered} / ${total}`;
-  document.getElementById('q-progress-bar').style.width = pct + '%';
-  document.getElementById('q-score-text').textContent = `Score: ${state.correctCount} correct (${answered > 0 ? Math.round((state.correctCount/answered)*100) : 0}%)`;
-}
+  const answeredCount = Object.keys(state.localAnswers).length;
+  if (answeredCount < total) {
+    const unanswered = total - answeredCount;
+    if (!confirm(`You have ${unanswered} unanswered question${unanswered > 1 ? 's' : ''}. Submit anyway? Unanswered questions will be marked incorrect.`)) return;
+  }
 
-async function finishQuestionnaire() {
-  showLoading('Calculating scores...', 'Analyzing your performance across all skills');
+  const submitBtn = document.getElementById('q-submit-all-btn');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i>Submitting...';
+
+  showLoading('Submitting answers...', 'Sending your answers to the server');
   try {
+    // Batch-submit all local answers to the backend
+    for (const q of state.questions) {
+      const ans = state.localAnswers[String(q.id)];
+      if (!ans) continue;
+      await api('POST', `/sessions/${state.sessionId}/questionnaire/answer`, {
+        question_id: q.id,
+        answer: ans
+      });
+    }
+    // Calculate scores
     const data = await api('POST', `/sessions/${state.sessionId}/questionnaire/finish`);
     state.proficiencyScores = data.proficiency_scores;
     hideLoading();
@@ -1249,9 +1236,21 @@ async function finishQuestionnaire() {
     showToast('Assessment complete!');
   } catch (e) {
     hideLoading();
-    showToast('Failed to calculate scores: ' + e.message, 'error');
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fa fa-flag-checkered mr-2"></i><span id="q-submit-all-label">Submit Assessment</span>';
+    showToast('Failed to submit: ' + e.message, 'error');
   }
 }
+
+function updateQuestionnaireProgress() {
+  const answered = Object.keys(state.localAnswers || {}).length;
+  const total = state.questions.length;
+  const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
+  document.getElementById('q-progress-text').textContent = `${answered} / ${total} answered`;
+  document.getElementById('q-progress-bar').style.width = pct + '%';
+  document.getElementById('q-score-text').textContent = answered === total ? 'All questions answered — ready to submit!' : `${total - answered} question${total - answered !== 1 ? 's' : ''} remaining`;
+}
+
 
 // -----------------------------------------------------------------------
 // PROFICIENCY RESULTS
@@ -1477,11 +1476,11 @@ async function openSkillTest(skillName, targetLevel) {
   // Show modal
   document.getElementById('skill-test-modal').classList.remove('hidden');
   document.getElementById('test-skill-name').textContent = `Verification Test: ${skillName}`;
-  document.getElementById('test-target-level').textContent = `Target Level: ${targetLevel} • 8 Questions • Pass: 75%`;
+  document.getElementById('test-target-level').textContent = `Target Level: ${targetLevel} • 10 Questions • Pass: 75%`;
   document.getElementById('test-question-view').classList.remove('hidden');
   document.getElementById('test-results-view').classList.add('hidden');
 
-  showLoading('Generating test...', `Generating 8 ${targetLevel}-level questions for ${skillName}`);
+  showLoading('Generating test...', `Generating 10 ${targetLevel}-level questions for ${skillName}`);
   try {
     const data = await api('POST', `/sessions/${state.sessionId}/skills/${encodeURIComponent(skillName)}/test/generate`);
     state.testQuestions = data.questions;
@@ -1537,18 +1536,17 @@ function renderTestQuestion(idx) {
   const submitBtn = document.getElementById('test-submit-all-btn');
 
   prevBtn.disabled = idx === 0;
-
   const isLast = idx === state.testQuestions.length - 1;
-  const allAnswered = state.testQuestions.every(q => state.testAnswers[String(q.id)]);
+  nextBtn.disabled = isLast;
 
-  if (isLast) {
-    nextBtn.classList.add('hidden');
-    submitBtn.classList.remove('hidden');
-    submitBtn.disabled = !allAnswered;
-  } else {
-    nextBtn.classList.remove('hidden');
-    submitBtn.classList.add('hidden');
-  }
+  // Submit always visible; label shows progress
+  const answeredCount = Object.keys(state.testAnswers).length;
+  const total = state.testQuestions.length;
+  const allAnswered = answeredCount === total;
+  submitBtn.disabled = false;
+  submitBtn.innerHTML = allAnswered
+    ? '<i class="fa fa-paper-plane mr-1"></i> Submit Test'
+    : `<i class="fa fa-paper-plane mr-1"></i> Submit Test (${answeredCount}/${total} answered)`;
 }
 
 function selectTestOption(letter) {
@@ -1557,30 +1555,30 @@ function selectTestOption(letter) {
   state.testAnswers[String(q.id)] = letter;
 
   document.querySelectorAll('#test-options button').forEach(btn => {
-    btn.classList.remove('selected');
-    const ltr = btn.querySelector('span').textContent;
-    const span = btn.querySelector('span:first-child');
-    if (ltr === letter) {
-      btn.classList.add('selected');
-      span.className = 'w-8 h-8 rounded-lg border-2 flex items-center justify-center font-bold text-sm shrink-0 bg-indigo-600 border-indigo-600 text-white';
-    } else {
-      span.className = 'w-8 h-8 rounded-lg border-2 border-current flex items-center justify-center font-bold text-sm shrink-0 text-gray-600';
-    }
+    const badge = btn.querySelector('span:first-child');
+    const ltr = badge.textContent.trim();
+    const sel = ltr === letter;
+    btn.classList.toggle('selected', sel);
+    badge.className = sel
+      ? 'w-8 h-8 rounded-lg border-2 flex items-center justify-center font-bold text-sm shrink-0 bg-indigo-600 border-indigo-600 text-white'
+      : 'w-8 h-8 rounded-lg border-2 border-current flex items-center justify-center font-bold text-sm shrink-0 text-gray-600';
   });
 
-  // Update progress
+  // Update progress bar + answered count
   const answered = Object.keys(state.testAnswers).length;
+  const total = state.testQuestions.length;
   document.getElementById('test-q-answered').textContent = `${answered} answered`;
-  document.getElementById('test-progress-bar').style.width = `${(answered / state.testQuestions.length) * 100}%`;
+  document.getElementById('test-progress-bar').style.width = `${(answered / total) * 100}%`;
 
-  const isLast = state.testCurrentIndex === state.testQuestions.length - 1;
-  if (isLast) {
-    const allAnswered = state.testQuestions.every(q => state.testAnswers[String(q.id)]);
-    document.getElementById('test-submit-all-btn').disabled = !allAnswered;
-  }
+  // Update submit button label
+  const submitBtn = document.getElementById('test-submit-all-btn');
+  submitBtn.disabled = false;
+  submitBtn.innerHTML = answered === total
+    ? '<i class="fa fa-paper-plane mr-1"></i> Submit Test'
+    : `<i class="fa fa-paper-plane mr-1"></i> Submit Test (${answered}/${total} answered)`;
 
-  // Auto advance after 0.8s
-  if (state.testCurrentIndex < state.testQuestions.length - 1) {
+  // Auto advance after 0.8s (skip on last question)
+  if (state.testCurrentIndex < total - 1) {
     setTimeout(() => testNavQuestion(1), 800);
   }
 }
@@ -1594,7 +1592,10 @@ function testNavQuestion(dir) {
 
 async function submitSkillTest() {
   const allAnswered = state.testQuestions.every(q => state.testAnswers[String(q.id)]);
-  if (!allAnswered) { showToast('Please answer all questions first', 'error'); return; }
+  if (!allAnswered) {
+    const unanswered = state.testQuestions.length - Object.keys(state.testAnswers).length;
+    if (!confirm(`${unanswered} question${unanswered > 1 ? 's' : ''} unanswered. Submit anyway?`)) return;
+  }
 
   showLoading('Evaluating test...', 'Grading your answers and generating feedback');
   try {
