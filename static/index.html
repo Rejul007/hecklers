@@ -1511,7 +1511,7 @@ async function openSkillTest(skillName, targetLevel) {
   // Show modal
   document.getElementById('skill-test-modal').classList.remove('hidden');
   document.getElementById('test-skill-name').textContent = `Verification Test: ${skillName}`;
-  document.getElementById('test-target-level').textContent = `Target Level: ${targetLevel} • 10 Questions • Pass: 75%`;
+  document.getElementById('test-target-level').textContent = `Target Level: ${targetLevel} • Pass: 75%`;
   document.getElementById('test-question-view').classList.remove('hidden');
   document.getElementById('test-results-view').classList.add('hidden');
 
@@ -1521,6 +1521,8 @@ async function openSkillTest(skillName, targetLevel) {
     state.testQuestions = data.questions;
     state.testAnswers = {};
     hideLoading();
+    const qCount = state.testQuestions.length;
+    document.getElementById('test-target-level').textContent = `Target Level: ${targetLevel} • ${qCount} Questions • Pass: 75%`;
     renderTestQuestion(0);
     showToast('Test ready!');
   } catch (e) {

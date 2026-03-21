@@ -627,25 +627,27 @@ Rules:
 - concept_tested should identify the specific sub-topic or concept
 - Return ONLY the JSON array, nothing else"""
 
-    response = _get_client().chat.completions.create(
-        model=MODEL,
-        max_tokens=16000,
-        messages=[{"role": "user", "content": prompt}]
-    )
+    questions = []
+    for attempt in range(3):
+        response = _get_client().chat.completions.create(
+            model=MODEL,
+            max_tokens=16000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        parsed = _parse_json_response(_get_text(response))
+        if isinstance(parsed, list) and len(parsed) >= questions.__len__():
+            questions = parsed
+        if len(questions) >= 10:
+            break
 
-    questions = _parse_json_response(_get_text(response))
-
-    if not isinstance(questions, list):
-        raise ValueError("Expected a list of questions")
-
-    if len(questions) < 10:
-        raise ValueError(f"Model returned only {len(questions)} questions; expected 10. Try again.")
+    if not questions:
+        raise ValueError("Model failed to return any questions after 3 attempts.")
 
     # Ensure sequential IDs
     for i, q in enumerate(questions):
         q["id"] = i + 1
 
-    return questions[:10]  # Ensure exactly 10
+    return questions[:10]
 
 
 def evaluate_skill_test(
