@@ -702,7 +702,8 @@ async function startNewSession() {
       const user = firebase.auth().currentUser;
       await api('POST', `/sessions/${state.sessionId}/link-user`, {
         firebase_uid: user.uid,
-        user_email: user.email || ''
+        user_email: user.email || '',
+        display_name: user.displayName || ''
       });
     }
     hideLoading();

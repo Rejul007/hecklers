@@ -648,14 +648,32 @@ async def manager_dashboard(request: Request):
     return {"employees": employees}
 
 
+@app.delete("/api/manager/employees/{session_id}")
+async def manager_delete_employee(session_id: str, request: Request):
+    """Delete an employee session. Requires valid manager session token."""
+    token = request.headers.get("X-Manager-Token", "")
+    if not database.verify_manager_session(token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    deleted = database.delete_session(session_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    return {"ok": True}
+
+
 @app.post("/api/sessions/{session_id}/link-user")
 async def link_user_to_session(session_id: str, request: Request):
     """Link a Firebase user's UID and email to a session."""
     body = await request.json()
     firebase_uid = body.get("firebase_uid", "")
     user_email = body.get("user_email", "")
+    display_name = body.get("display_name", "")
     if firebase_uid:
         database.update_session_user(session_id, firebase_uid, user_email)
+    # Set candidate_name from Google display name if not already set by resume parsing
+    if display_name:
+        session = database.get_session(session_id)
+        if session and not session.get("candidate_name"):
+            database.update_session(session_id, {"candidate_name": display_name})
     return {"ok": True}
 
 

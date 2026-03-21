@@ -432,6 +432,18 @@ def update_session_user(session_id: str, firebase_uid: str, user_email: str):
         conn.close()
 
 
+def delete_session(session_id: str) -> bool:
+    """Delete a session and all its skill tests. Returns True if deleted."""
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM skill_tests WHERE session_id = ?", (session_id,))
+        cursor = conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
 def get_all_employees() -> list:
     """
     Return a summary of all employees who have reached the pathway stage.
@@ -478,6 +490,20 @@ def get_all_employees() -> list:
             gaps_raw = session.get("skill_gaps") or {}
             skill_gaps = gaps_raw.get("skill_gaps", []) if isinstance(gaps_raw, dict) else []
 
+            # Per-skill topic details from the learning pathway
+            skill_details = {}
+            pathway = session.get("pathway") or {}
+            for skill_entry in pathway.get("skills", []):
+                sname = skill_entry.get("skill_name", "")
+                if not sname:
+                    continue
+                skill_details[sname] = {
+                    "topics": [step.get("focus", "") for step in skill_entry.get("learning_steps", []) if step.get("focus")],
+                    "prerequisites": skill_entry.get("prerequisites", []),
+                    "practice_project": skill_entry.get("practice_project", ""),
+                    "reasoning": skill_entry.get("reasoning", ""),
+                }
+
             # Display name: candidate_name > user_email > session id
             display_name = session.get("candidate_name") or session.get("user_email") or session["id"][:8]
 
@@ -490,6 +516,7 @@ def get_all_employees() -> list:
                 "completed_skills": completed,
                 "in_progress_skills": in_progress,
                 "skill_gaps": skill_gaps,
+                "skill_details": skill_details,
                 "status": session.get("status"),
                 "created_at": session.get("created_at"),
             })

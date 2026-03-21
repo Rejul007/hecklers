@@ -6,18 +6,31 @@
   <title>Manager Dashboard — AI Onboarding Engine</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <!-- Firebase SDKs (same version as index.html) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <style>
     body { font-family: 'Inter', system-ui, sans-serif; }
-    .fade-in { animation: fadeIn 0.3s ease-in; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.25s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .detail-panel {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.3s ease;
+    }
+    .detail-panel.open {
+      grid-template-rows: 1fr;
+    }
+    .detail-inner { overflow: hidden; }
+
+    .emp-row { transition: box-shadow 0.15s ease; }
+    .emp-row:hover { box-shadow: 0 4px 16px rgba(99,102,241,0.12); }
+    .emp-row.expanded { box-shadow: 0 4px 20px rgba(99,102,241,0.18); }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
-  <!-- LOGIN VIEW -->
+  <!-- ── LOGIN ─────────────────────────────────────────────────────────── -->
   <div id="login-view" class="hidden min-h-screen flex items-center justify-center px-4">
     <div class="w-full max-w-md fade-in">
       <div class="text-center mb-8">
@@ -27,40 +40,24 @@
         <h1 class="text-2xl font-bold text-gray-900">Manager Dashboard</h1>
         <p class="text-gray-500 mt-1">Sign in with your manager account</p>
       </div>
-
       <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
         <form id="login-form" class="space-y-5">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="email-input">Email address</label>
-            <input
-              id="email-input"
-              type="email"
-              required
-              placeholder="manager@company.com"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
+            <label class="block text-sm font-medium text-gray-700 mb-1">Email address</label>
+            <input id="email-input" type="email" required placeholder="manager@company.com"
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="password-input">Password</label>
-            <input
-              id="password-input"
-              type="password"
-              required
-              placeholder="••••••••"
-              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
+            <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input id="password-input" type="password" required placeholder="••••••••"
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
           </div>
-
           <div id="login-error" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
             <i class="fa-solid fa-circle-exclamation mr-1"></i>
             <span id="login-error-msg">Invalid email or password.</span>
           </div>
-
-          <button
-            type="submit"
-            id="login-btn"
-            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
-          >
+          <button type="submit" id="login-btn"
+            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors">
             <span id="login-btn-text">Sign In</span>
           </button>
         </form>
@@ -68,12 +65,12 @@
     </div>
   </div>
 
-  <!-- DASHBOARD VIEW -->
+  <!-- ── DASHBOARD ─────────────────────────────────────────────────────── -->
   <div id="dashboard-view" class="hidden">
 
     <!-- Header -->
-    <header class="bg-white border-b border-gray-200 sticky top-0 z-10">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-20">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
             <i class="fa-solid fa-shield-halved text-white text-sm"></i>
@@ -81,72 +78,58 @@
           <span class="font-bold text-gray-900 text-lg">Manager Dashboard</span>
         </div>
         <div class="flex items-center gap-4">
-          <span id="manager-email-display" class="text-sm text-gray-500 hidden sm:block"></span>
-          <button
-            id="signout-btn"
-            class="flex items-center gap-2 text-sm text-gray-600 hover:text-red-600 transition-colors font-medium"
-          >
-            <i class="fa-solid fa-arrow-right-from-bracket"></i>
-            Sign Out
+          <span id="manager-email-display" class="text-sm text-gray-400 hidden sm:block"></span>
+          <button id="signout-btn"
+            class="flex items-center gap-2 text-sm text-gray-500 hover:text-red-600 transition-colors font-medium">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
           </button>
         </div>
       </div>
     </header>
 
-    <!-- Summary Bar -->
-    <div class="bg-indigo-600 text-white">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div class="grid grid-cols-3 gap-4 sm:gap-8">
-          <div class="text-center">
-            <div id="summary-total" class="text-3xl font-bold">—</div>
-            <div class="text-indigo-200 text-sm mt-1">Total Employees</div>
-          </div>
-          <div class="text-center">
-            <div id="summary-completed" class="text-3xl font-bold">—</div>
-            <div class="text-indigo-200 text-sm mt-1">Skills Completed</div>
-          </div>
-          <div class="text-center">
-            <div id="summary-inprogress" class="text-3xl font-bold">—</div>
-            <div class="text-indigo-200 text-sm mt-1">In Progress</div>
-          </div>
+    <!-- Floating employee count badge -->
+    <div class="fixed top-20 left-4 z-10">
+      <div id="emp-count-badge"
+        class="hidden backdrop-blur-md bg-indigo-600/80 text-white rounded-2xl px-4 py-2.5 shadow-lg flex items-center gap-2.5">
+        <i class="fa-solid fa-users text-indigo-200 text-sm"></i>
+        <div>
+          <span id="emp-count-number" class="text-lg font-bold leading-none"></span>
+          <span class="text-indigo-200 text-xs ml-1">Employees</span>
         </div>
       </div>
     </div>
 
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Main content -->
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
 
-      <!-- Loading state -->
-      <div id="dashboard-loading" class="text-center py-20">
-        <i class="fa-solid fa-circle-notch fa-spin text-indigo-500 text-3xl mb-4"></i>
-        <p class="text-gray-500">Loading employee data...</p>
+      <!-- Loading -->
+      <div id="dashboard-loading" class="text-center py-24">
+        <i class="fa-solid fa-circle-notch fa-spin text-indigo-400 text-3xl mb-4"></i>
+        <p class="text-gray-400">Loading employee data...</p>
       </div>
 
-      <!-- Empty state -->
-      <div id="dashboard-empty" class="hidden text-center py-20">
-        <i class="fa-solid fa-users text-gray-300 text-5xl mb-4"></i>
-        <p class="text-gray-500 text-lg font-medium">No employees yet</p>
-        <p class="text-gray-400 text-sm mt-1">Employees will appear here once they reach the pathway stage.</p>
+      <!-- Empty -->
+      <div id="dashboard-empty" class="hidden text-center py-24">
+        <i class="fa-solid fa-users text-gray-200 text-5xl mb-4"></i>
+        <p class="text-gray-500 font-medium">No employees yet</p>
+        <p class="text-gray-400 text-sm mt-1">Employees appear here once they reach the pathway stage.</p>
       </div>
 
-      <!-- Error state -->
-      <div id="dashboard-error" class="hidden text-center py-20">
-        <i class="fa-solid fa-triangle-exclamation text-red-400 text-4xl mb-4"></i>
-        <p class="text-gray-700 font-medium">Failed to load data</p>
-        <p id="dashboard-error-msg" class="text-gray-500 text-sm mt-1"></p>
+      <!-- Error -->
+      <div id="dashboard-error" class="hidden text-center py-24">
+        <i class="fa-solid fa-triangle-exclamation text-red-300 text-4xl mb-4"></i>
+        <p class="text-gray-600 font-medium">Failed to load data</p>
+        <p id="dashboard-error-msg" class="text-gray-400 text-sm mt-1"></p>
         <button onclick="loadDashboard()" class="mt-4 text-indigo-600 hover:underline text-sm">Try again</button>
       </div>
 
-      <!-- Employee cards grid -->
-      <div id="employee-grid" class="hidden grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+      <!-- Employee list -->
+      <div id="employee-list" class="hidden space-y-3"></div>
 
     </main>
   </div>
 
   <script>
-    // -----------------------------------------------------------------------
-    // Firebase init — same project as employee app
-    // -----------------------------------------------------------------------
     const firebaseConfig = {
       apiKey: "AIzaSyBDnt-TNjyl0jJmf-JIwn-SUa0iRpifOV8",
       authDomain: "ai-skill-gap-finder.firebaseapp.com",
@@ -158,64 +141,34 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
 
-    // -----------------------------------------------------------------------
-    // State
-    // -----------------------------------------------------------------------
     const TOKEN_KEY = 'manager_token';
     const EMAIL_KEY = 'manager_email';
-
     function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
     function getEmail() { return localStorage.getItem(EMAIL_KEY) || ''; }
+    function saveSession(t, e) { localStorage.setItem(TOKEN_KEY, t); localStorage.setItem(EMAIL_KEY, e); }
+    function clearSession() { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(EMAIL_KEY); }
 
-    function saveSession(token, email) {
-      localStorage.setItem(TOKEN_KEY, token);
-      localStorage.setItem(EMAIL_KEY, email);
-    }
-
-    function clearSession() {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(EMAIL_KEY);
-    }
-
-    // -----------------------------------------------------------------------
-    // View helpers
-    // -----------------------------------------------------------------------
+    // ── Views ───────────────────────────────────────────────────────────────
     function showLogin() {
       document.getElementById('login-view').classList.remove('hidden');
       document.getElementById('dashboard-view').classList.add('hidden');
     }
-
     function showDashboard() {
       document.getElementById('login-view').classList.add('hidden');
       document.getElementById('dashboard-view').classList.remove('hidden');
       document.getElementById('manager-email-display').textContent = getEmail();
     }
 
-    function setLoginError(msg) {
-      const el = document.getElementById('login-error');
-      document.getElementById('login-error-msg').textContent = msg;
-      el.classList.remove('hidden');
-    }
-
-    function clearLoginError() {
-      document.getElementById('login-error').classList.add('hidden');
-    }
-
-    // -----------------------------------------------------------------------
-    // Auth — Firebase sign-in, then whitelist check
-    // -----------------------------------------------------------------------
+    // ── Auth ────────────────────────────────────────────────────────────────
     async function doLogin(email, password) {
       const btn = document.getElementById('login-btn');
       const btnText = document.getElementById('login-btn-text');
       btn.disabled = true;
       btnText.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Signing in...';
-      clearLoginError();
+      document.getElementById('login-error').classList.add('hidden');
 
       try {
-        // Step 1: authenticate with Firebase
         await auth.signInWithEmailAndPassword(email, password);
-
-        // Step 2: check against manager whitelist
         const res = await fetch('/api/manager/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -223,21 +176,20 @@
         });
         const data = await res.json();
         if (!res.ok) {
-          // Not a whitelisted manager — sign out of Firebase too
           await auth.signOut();
-          setLoginError(data.detail || 'This account is not authorized as a manager.');
+          document.getElementById('login-error-msg').textContent = data.detail || 'Not authorized as a manager.';
+          document.getElementById('login-error').classList.remove('hidden');
           return;
         }
-
         saveSession(data.token, data.email);
         showDashboard();
         loadDashboard();
       } catch (err) {
-        // Firebase auth errors
-        const msg = err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found'
+        const msg = ['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found'].includes(err.code)
           ? 'Invalid email or password.'
-          : (err.message || 'Sign-in failed. Please try again.');
-        setLoginError(msg);
+          : (err.message || 'Sign-in failed.');
+        document.getElementById('login-error-msg').textContent = msg;
+        document.getElementById('login-error').classList.remove('hidden');
       } finally {
         btn.disabled = false;
         btnText.textContent = 'Sign In';
@@ -245,41 +197,25 @@
     }
 
     async function doSignOut() {
-      const token = getToken();
-      try {
-        await fetch('/api/manager/logout', {
-          method: 'POST',
-          headers: { 'X-Manager-Token': token }
-        });
-      } catch (_) {}
+      try { await fetch('/api/manager/logout', { method: 'POST', headers: { 'X-Manager-Token': getToken() } }); } catch (_) {}
       try { await auth.signOut(); } catch (_) {}
       clearSession();
       showLogin();
     }
 
-    // -----------------------------------------------------------------------
-    // Dashboard data
-    // -----------------------------------------------------------------------
+    // ── Data ────────────────────────────────────────────────────────────────
     async function loadDashboard() {
       document.getElementById('dashboard-loading').classList.remove('hidden');
       document.getElementById('dashboard-empty').classList.add('hidden');
       document.getElementById('dashboard-error').classList.add('hidden');
-      document.getElementById('employee-grid').classList.add('hidden');
+      document.getElementById('employee-list').classList.add('hidden');
+      document.getElementById('emp-count-badge').classList.add('hidden');
 
       try {
-        const res = await fetch('/api/manager/dashboard', {
-          headers: { 'X-Manager-Token': getToken() }
-        });
-
-        if (res.status === 401) {
-          clearSession();
-          showLogin();
-          return;
-        }
-
+        const res = await fetch('/api/manager/dashboard', { headers: { 'X-Manager-Token': getToken() } });
+        if (res.status === 401) { clearSession(); showLogin(); return; }
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Failed to load dashboard');
-
+        if (!res.ok) throw new Error(data.detail || 'Failed to load');
         renderDashboard(data.employees || []);
       } catch (err) {
         document.getElementById('dashboard-loading').classList.add('hidden');
@@ -291,141 +227,230 @@
     function renderDashboard(employees) {
       document.getElementById('dashboard-loading').classList.add('hidden');
 
-      const totalCompleted = employees.reduce((s, e) => s + (e.completed_skills || 0), 0);
-      const totalInProgress = employees.reduce((s, e) => s + (e.in_progress_skills || 0), 0);
-      document.getElementById('summary-total').textContent = employees.length;
-      document.getElementById('summary-completed').textContent = totalCompleted;
-      document.getElementById('summary-inprogress').textContent = totalInProgress;
+      // Floating count badge
+      document.getElementById('emp-count-number').textContent = employees.length;
+      document.getElementById('emp-count-badge').classList.remove('hidden');
 
       if (employees.length === 0) {
         document.getElementById('dashboard-empty').classList.remove('hidden');
         return;
       }
 
-      const grid = document.getElementById('employee-grid');
-      grid.innerHTML = '';
-      employees.forEach(emp => grid.appendChild(buildEmployeeCard(emp)));
-      grid.classList.remove('hidden');
+      const list = document.getElementById('employee-list');
+      list.innerHTML = '';
+      employees.forEach((emp, idx) => list.appendChild(buildEmployeeRow(emp, idx)));
+      list.classList.remove('hidden');
     }
 
-    // -----------------------------------------------------------------------
-    // Card builder
-    // -----------------------------------------------------------------------
+    // ── Row builder ─────────────────────────────────────────────────────────
     function scoreBadge(score) {
-      if (score === null || score === undefined) {
-        return `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">N/A</span>`;
-      }
-      let cls;
-      if (score >= 70) cls = 'bg-green-100 text-green-700';
-      else if (score >= 50) cls = 'bg-orange-100 text-orange-700';
-      else cls = 'bg-red-100 text-red-700';
-      return `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${cls}">${score}%</span>`;
+      if (score == null) return `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-400">N/A</span>`;
+      const cls = score >= 70 ? 'bg-green-100 text-green-700' : score >= 50 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700';
+      return `<span class="px-2.5 py-1 rounded-full text-xs font-semibold ${cls}">${score}%</span>`;
     }
 
     function severityBadge(severity) {
-      const map = {
-        critical: 'bg-red-100 text-red-700',
-        high:     'bg-orange-100 text-orange-700',
-        medium:   'bg-yellow-100 text-yellow-700',
-        low:      'bg-green-100 text-green-700',
-      };
-      const cls = map[(severity || '').toLowerCase()] || 'bg-gray-100 text-gray-500';
-      return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${cls}">${severity || 'unknown'}</span>`;
+      const map = { critical:'bg-red-100 text-red-700', high:'bg-orange-100 text-orange-700', medium:'bg-yellow-100 text-yellow-700', low:'bg-green-100 text-green-700' };
+      const cls = map[(severity||'').toLowerCase()] || 'bg-gray-100 text-gray-400';
+      return `<span class="px-2 py-0.5 rounded text-xs font-semibold ${cls}">${severity||'unknown'}</span>`;
     }
 
-    function buildEmployeeCard(emp) {
-      const card = document.createElement('div');
-      card.className = 'bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden fade-in';
+    function buildEmployeeRow(emp, idx) {
+      const wrap = document.createElement('div');
+      wrap.className = 'emp-row bg-white rounded-2xl border border-gray-200 overflow-hidden fade-in';
 
       const initial = (emp.display_name || '?')[0].toUpperCase();
-      const createdDate = emp.created_at ? new Date(emp.created_at).toLocaleDateString() : '';
-
       const gaps = emp.skill_gaps || [];
-      let gapsHtml = '';
-      if (gaps.length > 0) {
-        const items = gaps.map(gap => {
+
+      // ── Summary row (always visible) ──────────────────────────────────
+      const summary = document.createElement('div');
+      summary.className = 'flex items-center gap-4 px-5 py-4 cursor-pointer select-none';
+      summary.innerHTML = `
+        <!-- Avatar -->
+        <div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm flex-shrink-0">
+          ${escHtml(initial)}
+        </div>
+
+        <!-- Name + email -->
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-900 truncate text-sm">${escHtml(emp.display_name || 'Unknown')}</p>
+          ${emp.user_email ? `<p class="text-xs text-gray-400 truncate">${escHtml(emp.user_email)}</p>` : ''}
+        </div>
+
+        <!-- Stats pills -->
+        <div class="hidden sm:flex items-center gap-3 flex-shrink-0 text-center">
+          <div>
+            <p class="text-sm font-bold text-gray-700">${emp.total_skills || 0}</p>
+            <p class="text-xs text-gray-400">Skills</p>
+          </div>
+          <div class="w-px h-6 bg-gray-100"></div>
+          <div>
+            <p class="text-sm font-bold text-green-600">${emp.completed_skills || 0}</p>
+            <p class="text-xs text-gray-400">Done</p>
+          </div>
+          <div class="w-px h-6 bg-gray-100"></div>
+          <div>
+            <p class="text-sm font-bold text-blue-500">${emp.in_progress_skills || 0}</p>
+            <p class="text-xs text-gray-400">Active</p>
+          </div>
+        </div>
+
+        <!-- Score + chevron -->
+        <div class="flex items-center gap-3 flex-shrink-0">
+          ${scoreBadge(emp.assessment_score)}
+          <i class="fa-solid fa-chevron-down text-gray-300 text-xs transition-transform duration-300" id="chevron-${idx}"></i>
+        </div>
+      `;
+
+      // ── Detail panel (expandable) ──────────────────────────────────────
+      const panel = document.createElement('div');
+      panel.className = 'detail-panel';
+      panel.id = `detail-${idx}`;
+
+      const inner = document.createElement('div');
+      inner.className = 'detail-inner';
+
+      inner.innerHTML = buildDetailHtml(emp, gaps);
+      panel.appendChild(inner);
+
+      // ── Toggle logic ───────────────────────────────────────────────────
+      let open = false;
+      summary.addEventListener('click', () => {
+        open = !open;
+        panel.classList.toggle('open', open);
+        wrap.classList.toggle('expanded', open);
+        wrap.classList.toggle('border-indigo-200', open);
+        document.getElementById(`chevron-${idx}`).style.transform = open ? 'rotate(180deg)' : '';
+      });
+
+      wrap.appendChild(summary);
+      wrap.appendChild(panel);
+      return wrap;
+    }
+
+    function buildDetailHtml(emp, gaps) {
+      const createdDate = emp.created_at ? new Date(emp.created_at).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) : '';
+
+      let gapsSection = '';
+      if (gaps.length === 0) {
+        gapsSection = `<p class="text-sm text-gray-400 italic">No skill gaps recorded.</p>`;
+      } else {
+        gapsSection = gaps.map(gap => {
           const name = gap.skill || gap.skill_name || 'Unknown skill';
           const current = gap.current_level || gap.current || '—';
           const required = gap.required_level || gap.required || '—';
+          const reasoning = gap.gap_reasoning || gap.reasoning || gap.description || '';
+
+          // Topics / what the skill comprises — from pathway skill_details keyed by skill name
+          const skillDetail = (emp.skill_details || {})[name] || {};
+          const topics = skillDetail.topics || [];
+          let topicsHtml = '';
+          if (topics.length > 0) {
+            topicsHtml = `
+              <div class="mt-3">
+                <p class="text-xs font-semibold text-gray-500 mb-1.5">What this skill covers</p>
+                <div class="flex flex-wrap gap-1.5">
+                  ${topics.map(t => `<span class="bg-indigo-50 text-indigo-700 text-xs px-2.5 py-1 rounded-full">${escHtml(String(t))}</span>`).join('')}
+                </div>
+              </div>`;
+          }
+
+
           return `
-            <div class="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
-              <div class="flex-1 min-w-0 mr-2">
-                <p class="text-xs font-medium text-gray-800 truncate">${escHtml(name)}</p>
-                <p class="text-xs text-gray-400">${escHtml(current)} → ${escHtml(required)}</p>
+            <div class="bg-gray-50 rounded-xl p-4">
+              <div class="flex items-start justify-between gap-3 mb-2">
+                <p class="font-semibold text-gray-800 text-sm">${escHtml(name)}</p>
+                ${severityBadge(gap.severity || '')}
               </div>
-              ${severityBadge(gap.severity || '')}
-            </div>`;
+              <p class="text-xs text-gray-400 mb-1">
+                <span class="font-medium text-gray-500">Current:</span> ${escHtml(current)}
+                <span class="mx-1.5 text-gray-300">→</span>
+                <span class="font-medium text-gray-500">Required:</span> ${escHtml(required)}
+              </p>
+              ${reasoning ? `<p class="text-xs text-gray-500 mt-2 leading-relaxed">${escHtml(reasoning)}</p>` : ''}
+              ${topicsHtml}
+</div>`;
         }).join('');
-        gapsHtml = `
-          <div class="px-5 pb-4">
-            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Skill Gaps</p>
-            <div>${items}</div>
-          </div>`;
-      } else {
-        gapsHtml = `
-          <div class="px-5 pb-4">
-            <p class="text-xs text-gray-400 italic">No skill gaps recorded.</p>
-          </div>`;
       }
 
-      card.innerHTML = `
-        <div class="px-5 py-4 border-b border-gray-100 flex items-start gap-3">
-          <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm flex-shrink-0">
-            ${escHtml(initial)}
+      return `
+        <div class="border-t border-gray-100 px-5 pt-4 pb-5">
+          <!-- Mobile stats row -->
+          <div class="sm:hidden flex items-center gap-4 mb-4 pb-4 border-b border-gray-100">
+            <div class="text-center">
+              <p class="text-base font-bold text-gray-700">${emp.total_skills || 0}</p>
+              <p class="text-xs text-gray-400">Skills</p>
+            </div>
+            <div class="text-center">
+              <p class="text-base font-bold text-green-600">${emp.completed_skills || 0}</p>
+              <p class="text-xs text-gray-400">Completed</p>
+            </div>
+            <div class="text-center">
+              <p class="text-base font-bold text-blue-500">${emp.in_progress_skills || 0}</p>
+              <p class="text-xs text-gray-400">In Progress</p>
+            </div>
           </div>
-          <div class="flex-1 min-w-0">
-            <p class="font-semibold text-gray-900 truncate">${escHtml(emp.display_name || 'Unknown')}</p>
-            ${emp.user_email ? `<p class="text-xs text-gray-400 truncate">${escHtml(emp.user_email)}</p>` : ''}
-            ${createdDate ? `<p class="text-xs text-gray-400">Started ${createdDate}</p>` : ''}
-          </div>
-          <div class="flex-shrink-0">${scoreBadge(emp.assessment_score)}</div>
-        </div>
-        <div class="px-5 py-3 border-b border-gray-100 grid grid-cols-3 gap-2 text-center">
-          <div>
-            <p class="text-lg font-bold text-gray-800">${emp.total_skills || 0}</p>
-            <p class="text-xs text-gray-400">Total Skills</p>
-          </div>
-          <div>
-            <p class="text-lg font-bold text-green-600">${emp.completed_skills || 0}</p>
-            <p class="text-xs text-gray-400">Completed</p>
-          </div>
-          <div>
-            <p class="text-lg font-bold text-blue-600">${emp.in_progress_skills || 0}</p>
-            <p class="text-xs text-gray-400">In Progress</p>
-          </div>
-        </div>
-        <div class="pt-3">${gapsHtml}</div>
-      `;
 
-      return card;
+          <!-- Meta -->
+          <div class="flex items-center gap-3 mb-4 text-xs text-gray-400">
+            ${createdDate ? `<span><i class="fa-solid fa-calendar-days mr-1"></i>Started ${escHtml(createdDate)}</span>` : ''}
+            ${emp.status ? `<span class="capitalize"><i class="fa-solid fa-circle-dot mr-1"></i>${escHtml(emp.status)}</span>` : ''}
+          </div>
+
+          <!-- Skill gaps -->
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Skill Gaps</p>
+          <div class="space-y-3">
+            ${gapsSection}
+          </div>
+
+          <!-- Remove employee -->
+          <div class="mt-5 pt-4 border-t border-gray-100 flex justify-end">
+            <button
+              onclick="removeEmployee('${escHtml(emp.session_id)}', '${escHtml(emp.display_name)}')"
+              class="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 rounded-lg px-3 py-1.5 transition-colors">
+              <i class="fa-solid fa-trash-can"></i> Remove Employee
+            </button>
+          </div>
+        </div>`;
+    }
+
+    async function removeEmployee(sessionId, displayName) {
+      if (!confirm(`Remove ${displayName} from the dashboard?\n\nThis permanently deletes their onboarding data.`)) return;
+      try {
+        const res = await fetch(`/api/manager/employees/${encodeURIComponent(sessionId)}`, {
+          method: 'DELETE',
+          headers: { 'X-Manager-Token': getToken() }
+        });
+        if (res.status === 401) { clearSession(); showLogin(); return; }
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          alert((data && data.detail) || `Failed to remove employee (${res.status})`);
+          return;
+        }
+        loadDashboard();
+      } catch (err) {
+        alert('Network error: ' + err.message);
+      }
     }
 
     function escHtml(str) {
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    // -----------------------------------------------------------------------
-    // Event listeners
-    // -----------------------------------------------------------------------
+    // ── Event listeners ─────────────────────────────────────────────────────
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const email = document.getElementById('email-input').value.trim();
-      const password = document.getElementById('password-input').value;
-      await doLogin(email, password);
+      await doLogin(
+        document.getElementById('email-input').value.trim(),
+        document.getElementById('password-input').value
+      );
     });
 
     document.getElementById('signout-btn').addEventListener('click', doSignOut);
 
-    // -----------------------------------------------------------------------
-    // Init: check for existing token
-    // -----------------------------------------------------------------------
+    // ── Init ────────────────────────────────────────────────────────────────
     (async function init() {
-      const token = getToken();
-      if (token) {
+      if (getToken()) {
         showDashboard();
         await loadDashboard();
       } else {
