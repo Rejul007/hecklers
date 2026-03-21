@@ -9,9 +9,9 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Browser (SPA)                            │
-│  Tailwind CSS + Vanilla JS + Font Awesome + Firebase Auth       │
-│  Views: Welcome → Setup → Analysis → Questionnaire →            │
-│         Results → Pathway → Skill Tests                         │
+│    Tailwind CSS + Vanilla JS + Font Awesome + Firebase Auth     │
+│      Views: Welcome → Setup → Analysis → Questionnaire →        │
+│                Results → Pathway → Skill Tests                  │
 │                                                                 │
 │  /manager.html  — Manager dashboard (Firebase auth)             │
 │  /admin.html    — Admin panel (password protected)              │

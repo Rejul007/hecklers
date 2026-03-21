@@ -26,8 +26,8 @@ if ! command -v ollama &> /dev/null; then
   echo "Ollama installed."
 fi
 
-# Start Ollama in the background
-ollama serve &
+# Start Ollama in the background (ignore error if already running)
+ollama serve 2>/dev/null &
 OLLAMA_PID=$!
 
 echo "Waiting for Ollama to start..."

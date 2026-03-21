@@ -76,6 +76,11 @@
             <i class="fa-solid fa-shield-halved text-white text-sm"></i>
           </div>
           <span class="font-bold text-gray-900 text-lg">Manager Dashboard</span>
+          <div id="emp-count-badge" class="hidden items-center gap-1.5 ml-2">
+            <i class="fa-solid fa-users text-indigo-400 text-xs"></i>
+            <span id="emp-count-number" class="text-sm font-bold text-gray-700"></span>
+            <span class="text-xs text-gray-400">Employees</span>
+          </div>
         </div>
         <div class="flex items-center gap-4">
           <span id="manager-email-display" class="text-sm text-gray-400 hidden sm:block"></span>
@@ -87,16 +92,18 @@
       </div>
     </header>
 
-    <!-- Floating employee count badge -->
-    <div class="fixed top-20 left-4 z-10">
-      <div id="emp-count-badge"
-        class="hidden backdrop-blur-md bg-indigo-600/80 text-white rounded-2xl px-4 py-2.5 shadow-lg flex items-center gap-2.5">
-        <i class="fa-solid fa-users text-indigo-200 text-sm"></i>
-        <div>
-          <span id="emp-count-number" class="text-lg font-bold leading-none"></span>
-          <span class="text-indigo-200 text-xs ml-1">Employees</span>
-        </div>
-      </div>
+    <!-- Floating quick links -->
+    <div class="fixed top-20 left-4 z-10 flex flex-col gap-2">
+      <a href="/"
+        class="backdrop-blur-md bg-indigo-600/80 hover:bg-indigo-700/90 text-white rounded-2xl px-4 py-2.5 shadow-lg flex items-center gap-2.5 transition-colors">
+        <i class="fa-solid fa-user text-indigo-200 text-sm"></i>
+        <span class="text-sm font-semibold">Employee Dashboard</span>
+      </a>
+      <a href="/admin.html"
+        class="backdrop-blur-md bg-gray-800/80 hover:bg-gray-900/90 text-white rounded-2xl px-4 py-2.5 shadow-lg flex items-center gap-2.5 transition-colors">
+        <i class="fa-solid fa-lock text-gray-300 text-sm"></i>
+        <span class="text-sm font-semibold">Admin Panel</span>
+      </a>
     </div>
 
     <!-- Main content -->
@@ -227,9 +234,10 @@
     function renderDashboard(employees) {
       document.getElementById('dashboard-loading').classList.add('hidden');
 
-      // Floating count badge
+      // Employee count in header
       document.getElementById('emp-count-number').textContent = employees.length;
       document.getElementById('emp-count-badge').classList.remove('hidden');
+      document.getElementById('emp-count-badge').classList.add('flex');
 
       if (employees.length === 0) {
         document.getElementById('dashboard-empty').classList.remove('hidden');

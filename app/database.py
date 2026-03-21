@@ -6,6 +6,7 @@ Tables:
   - skill_tests: stores per-skill verification test data and results
 """
 
+import os
 import sqlite3
 import json
 import uuid
